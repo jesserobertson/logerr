@@ -114,7 +114,7 @@ class Ok(Result[T, E]):
         try:
             return Ok(f(self._value))
         except Exception as e:
-            return Err.from_exception(e)
+            return Err(e)  # type: ignore
     
     def map_err(self, f: Callable[[E], U]) -> Result[T, U]:
         return Ok(self._value)
@@ -123,7 +123,7 @@ class Ok(Result[T, E]):
         try:
             return f(self._value)
         except Exception as e:
-            return Err.from_exception(e)
+            return Err(e)  # type: ignore
     
     def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
         return Ok(self._value)
@@ -171,7 +171,7 @@ class Err(Result[T, E]):
             return
             
         # Capture context based on configuration
-        context = {}
+        context: dict[str, Any] = {}
         if config.capture_function_name and caller_frame:
             context["function"] = caller_frame.f_code.co_name
         if config.capture_filename and caller_frame:
@@ -196,9 +196,9 @@ class Err(Result[T, E]):
         logger.log(log_level, message, **context, error=self._error)
     
     @classmethod
-    def from_exception(cls, exception: Exception) -> Err[T, Exception]:
+    def from_exception(cls, exception: Exception) -> Err[Any, Exception]:
         """Create an Err from an exception with automatic logging."""
-        return cls(exception)
+        return Err[Any, Exception](exception)
     
     @classmethod
     def from_value(cls, error: E) -> Err[T, E]:
@@ -224,17 +224,17 @@ class Err(Result[T, E]):
         try:
             return f(self._error)
         except Exception as e:
-            # Create new Err without logging (to avoid double-logging)
-            return Err.from_exception(e).unwrap_or_else(lambda _: default if 'default' in locals() else None)
+            # If the unwrap_or_else function fails, we need to raise an error
+            raise RuntimeError(f"unwrap_or_else function failed: {e}")
     
     def map(self, f: Callable[[T], U]) -> Result[U, E]:
         return Err(self._error, _skip_logging=True)
     
     def map_err(self, f: Callable[[E], U]) -> Result[T, U]:
         try:
-            return Err.from_value(f(self._error))
+            return Err(f(self._error))
         except Exception as e:
-            return Err.from_exception(e)
+            return Err(e)  # type: ignore
     
     def and_then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         return Err(self._error, _skip_logging=True)
@@ -243,7 +243,7 @@ class Err(Result[T, E]):
         try:
             return f(self._error)
         except Exception as e:
-            return Err.from_exception(e)
+            return Err(e)  # type: ignore
     
     def __repr__(self) -> str:
         return f"Err({self._error!r})"

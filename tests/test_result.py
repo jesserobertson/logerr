@@ -86,6 +86,11 @@ class TestResultFactories:
 class TestLogging:
     """Tests for automatic logging functionality."""
     
+    def setup_method(self):
+        """Reset configuration before each test."""
+        from logerr import reset_config
+        reset_config()
+    
     def test_err_logs_by_default(self):
         with patch.object(logger, 'log') as mock_log:
             Err("test error")

@@ -42,6 +42,12 @@ def get_config() -> LoggingConfig:
     return _config
 
 
+def reset_config() -> None:
+    """Reset configuration to defaults."""
+    global _config
+    _config = LoggingConfig()
+
+
 def configure(config_dict: Dict[str, Any]) -> None:
     """
     Configure logerr from a dictionary.
