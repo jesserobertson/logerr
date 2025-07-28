@@ -8,3 +8,6 @@ __pycache__/
 
 # pytest cache
 .pytest_cache/
+
+# Documentation build
+site/

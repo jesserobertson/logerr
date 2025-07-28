@@ -18,7 +18,19 @@ mypy = "*"
 
 [feature.dev.tasks]
 test = "pytest tests/ -v"
+test-all = "pytest tests/ --doctest-modules logerr/ -v"
 typecheck = "mypy logerr"
+
+[feature.docs.dependencies]
+mkdocs = "*"
+mkdocs-material = "*"
+mkdocstrings = "*"
+mkdocstrings-python = "*"
+
+[feature.docs.tasks]
+docs-serve = "mkdocs serve"
+docs-build = "mkdocs build"
 
 [environments]
 dev = ["dev"]
+docs = ["docs"]

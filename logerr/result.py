@@ -21,78 +21,228 @@ U = TypeVar('U')
 
 
 class Result(Generic[T, E], ABC):
-    """
-    A type that represents either success (Ok) or failure (Err).
+    """A type that represents either success (Ok) or failure (Err).
     
-    Similar to Rust's Result<T, E> type, with automatic logging integration
-    for error cases.
+    Result<T, E> is similar to Rust's Result type, providing a way to handle
+    operations that might fail without using exceptions. When an Err is created,
+    it's automatically logged using loguru with configurable log levels and formats.
+    
+    Type Parameters:
+        T: The type of the success value
+        E: The type of the error value
+        
+    Examples:
+        Basic usage:
+        >>> from logerr import Ok, Err
+        >>> success = Ok(42)
+        >>> success.is_ok()
+        True
+        >>> success.unwrap()
+        42
+        
+        >>> failure = Err("something went wrong")
+        >>> failure.is_err()
+        True
+        >>> failure.unwrap_or(0)
+        0
+        
+        Method chaining:
+        >>> result = Ok(5).map(lambda x: x * 2).map(str)
+        >>> result.unwrap()
+        '10'
     """
     
     @abstractmethod
     def is_ok(self) -> bool:
-        """Returns True if the result is Ok."""
+        """Check if this Result contains a success value.
+        
+        Returns:
+            True if this is an Ok result, False if Err.
+            
+        Examples:
+            >>> Ok(42).is_ok()
+            True
+            >>> Err("error").is_ok()
+            False
+        """
         pass
     
     @abstractmethod
     def is_err(self) -> bool:
-        """Returns True if the result is Err."""
+        """Check if this Result contains an error value.
+        
+        Returns:
+            True if this is an Err result, False if Ok.
+            
+        Examples:
+            >>> Ok(42).is_err()
+            False
+            >>> Err("error").is_err()
+            True
+        """
         pass
     
     @abstractmethod
     def unwrap(self) -> T:
-        """
-        Returns the contained Ok value.
-        Raises an exception if the result is Err.
+        """Extract the success value, raising an exception if this is an Err.
+        
+        Returns:
+            The contained Ok value.
+            
+        Raises:
+            Exception: If this Result is an Err.
+            
+        Examples:
+            >>> Ok(42).unwrap()
+            42
+            >>> Err("failed").unwrap()  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+            RuntimeError: Called unwrap on Err: failed
         """
         pass
     
     @abstractmethod
     def unwrap_or(self, default: T) -> T:
-        """
-        Returns the contained Ok value or a provided default.
+        """Extract the success value or return a default.
+        
+        Args:
+            default: The value to return if this is an Err.
+            
+        Returns:
+            The Ok value if present, otherwise the default.
+            
+        Examples:
+            >>> Ok(42).unwrap_or(0)
+            42
+            >>> Err("failed").unwrap_or(0)
+            0
         """
         pass
     
     @abstractmethod
     def unwrap_or_else(self, f: Callable[[E], T]) -> T:
-        """
-        Returns the contained Ok value or computes it from the error.
+        """Extract the success value or compute one from the error.
+        
+        Args:
+            f: Function to compute a value from the error.
+            
+        Returns:
+            The Ok value if present, otherwise f(error).
+            
+        Examples:
+            >>> Ok(42).unwrap_or_else(lambda e: len(str(e)))
+            42
+            >>> Err("failed").unwrap_or_else(lambda e: len(str(e)))
+            6
         """
         pass
     
     @abstractmethod
     def map(self, f: Callable[[T], U]) -> Result[U, E]:
-        """
-        Maps a Result<T, E> to Result<U, E> by applying a function to the Ok value.
+        """Transform the success value if present.
+        
+        Args:
+            f: Function to transform the Ok value.
+            
+        Returns:
+            Ok(f(value)) if this is Ok, otherwise the original Err.
+            
+        Examples:
+            >>> Ok(5).map(lambda x: x * 2)
+            Ok(10)
+            >>> Err("failed").map(lambda x: x * 2)
+            Err('failed')
         """
         pass
     
     @abstractmethod
     def map_err(self, f: Callable[[E], U]) -> Result[T, U]:
-        """
-        Maps a Result<T, E> to Result<T, U> by applying a function to the Err value.
+        """Transform the error value if present.
+        
+        Args:
+            f: Function to transform the Err value.
+            
+        Returns:
+            Err(f(error)) if this is Err, otherwise the original Ok.
+            
+        Examples:
+            >>> Ok(42).map_err(str)
+            Ok(42)
+            >>> Err(404).map_err(str)
+            Err('404')
         """
         pass
     
     @abstractmethod
     def and_then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
-        """
-        Chains Result operations, also known as flatmap.
+        """Chain Result-returning operations (also known as flatmap).
+        
+        Args:
+            f: Function that takes the Ok value and returns a new Result.
+            
+        Returns:
+            f(value) if this is Ok, otherwise the original Err.
+            
+        Examples:
+            >>> def divide(x: int) -> Result[float, str]:
+            ...     if x == 0:
+            ...         return Err("division by zero")
+            ...     return Ok(10.0 / x)
+            >>> Ok(2).and_then(divide)
+            Ok(5.0)
+            >>> Ok(0).and_then(divide)
+            Err('division by zero')
         """
         pass
     
     @abstractmethod
     def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
-        """
-        Chains Result operations on the error case.
+        """Chain Result-returning operations on the error case.
+        
+        Args:
+            f: Function that takes the Err value and returns a new Result.
+            
+        Returns:
+            The original Ok if this is Ok, otherwise f(error).
+            
+        Examples:
+            >>> def retry(error: str) -> Result[int, str]:
+            ...     return Ok(99) if "retry" in error else Err("permanent failure")
+            >>> Ok(42).or_else(retry)
+            Ok(42)
+            >>> Err("retry needed").or_else(retry)
+            Ok(99)
         """
         pass
 
 
 class Ok(Result[T, E]):
-    """Represents a successful result containing a value."""
+    """Represents a successful result containing a value.
     
-    def __init__(self, value: T):
+    Ok is the success variant of Result<T, E>. It wraps a value of type T
+    and provides methods to safely access and transform it.
+    
+    Args:
+        value: The success value to wrap.
+        
+    Examples:
+        >>> ok = Ok(42)
+        >>> ok.is_ok()
+        True
+        >>> ok.unwrap()
+        42
+        
+        Chaining operations:
+        >>> Ok("hello").map(str.upper).map(len)
+        Ok(5)
+    """
+    
+    def __init__(self, value: T) -> None:
+        """Initialize an Ok result with a value.
+        
+        Args:
+            value: The success value to wrap.
+        """
         self._value = value
     
     def is_ok(self) -> bool:
@@ -136,9 +286,42 @@ class Ok(Result[T, E]):
 
 
 class Err(Result[T, E]):
-    """Represents a failed result containing an error."""
+    """Represents a failed result containing an error.
     
-    def __init__(self, error: E, *, _skip_logging: bool = False):
+    Err is the failure variant of Result<T, E>. It wraps an error value of type E
+    and automatically logs the error when created (unless logging is disabled).
+    
+    Args:
+        error: The error value to wrap.
+        _skip_logging: Internal parameter to skip automatic logging.
+        
+    Examples:
+        >>> err = Err("something went wrong")
+        >>> err.is_err()
+        True
+        >>> err.unwrap_or("default")
+        'default'
+        
+        Error logging happens automatically:
+        >>> Err("database connection failed")  # Logs the error
+        Err('database connection failed')
+        
+        Creating from exceptions:
+        >>> try:
+        ...     1 / 0
+        ... except Exception as e:
+        ...     result = Err.from_exception(e)
+        >>> result.is_err()
+        True
+    """
+    
+    def __init__(self, error: E, *, _skip_logging: bool = False) -> None:
+        """Initialize an Err result with an error value.
+        
+        Args:
+            error: The error value to wrap.
+            _skip_logging: If True, skip automatic error logging.
+        """
         self._error = error
         if not _skip_logging:
             self._log_error()
@@ -197,12 +380,42 @@ class Err(Result[T, E]):
     
     @classmethod
     def from_exception(cls, exception: Exception) -> Err[Any, Exception]:
-        """Create an Err from an exception with automatic logging."""
+        """Create an Err from an exception with automatic logging.
+        
+        This is the preferred way to create an Err from a caught exception,
+        as it ensures proper typing and automatic logging.
+        
+        Args:
+            exception: The exception to wrap in an Err.
+            
+        Returns:
+            An Err containing the exception.
+            
+        Examples:
+            >>> try:
+            ...     int("not a number")
+            ... except ValueError as e:
+            ...     result = Err.from_exception(e)
+            >>> result.is_err()
+            True
+        """
         return Err[Any, Exception](exception)
     
     @classmethod
     def from_value(cls, error: E) -> Err[T, E]:
-        """Create an Err from any error value with automatic logging."""
+        """Create an Err from any error value with automatic logging.
+        
+        Args:
+            error: The error value to wrap.
+            
+        Returns:
+            An Err containing the error value.
+            
+        Examples:
+            >>> error_result = Err.from_value("validation failed")
+            >>> error_result.unwrap_or("default")
+            'default'
+        """
         return cls(error)
     
     def is_ok(self) -> bool:
@@ -252,10 +465,37 @@ class Err(Result[T, E]):
         return isinstance(other, Err) and self._error == other._error
 
 
-# Convenience functions for creating Results
+# Factory functions for creating Results
 def from_callable(f: Callable[[], T]) -> Result[T, Exception]:
-    """
-    Execute a callable and return Ok(result) or Err(exception).
+    """Execute a callable and return Ok(result) or Err(exception).
+    
+    This function safely executes a callable that might raise an exception,
+    capturing any exceptions and converting them to Err results with automatic logging.
+    
+    Args:
+        f: A callable that returns a value of type T.
+        
+    Returns:
+        Ok(result) if the callable succeeds, Err(exception) if it raises.
+        
+    Examples:
+        Successful execution:
+        >>> result = from_callable(lambda: 42)
+        >>> result.unwrap()
+        42
+        
+        Handling exceptions:
+        >>> result = from_callable(lambda: 1 / 0)
+        >>> result.is_err()
+        True
+        >>> result.unwrap_or(0)
+        0
+        
+        With more complex operations:
+        >>> import json
+        >>> result = from_callable(lambda: json.loads('{"key": "value"}'))
+        >>> result.map(lambda d: d["key"]).unwrap_or("not found")
+        'value'
     """
     try:
         return Ok(f())
@@ -264,8 +504,34 @@ def from_callable(f: Callable[[], T]) -> Result[T, Exception]:
 
 
 def from_optional(value: Optional[T], error: E) -> Result[T, E]:
-    """
-    Convert an Optional value to a Result.
+    """Convert an Optional value to a Result.
+    
+    This function converts a potentially None value into a Result,
+    using the provided error value if the input is None.
+    
+    Args:
+        value: An optional value that might be None.
+        error: The error value to use if value is None.
+        
+    Returns:
+        Ok(value) if value is not None, Err(error) if value is None.
+        
+    Examples:
+        With a present value:
+        >>> result = from_optional("hello", "no value")
+        >>> result.unwrap()
+        'hello'
+        
+        With None:
+        >>> result = from_optional(None, "value was None")
+        >>> result.unwrap_or("default")
+        'default'
+        
+        Chaining with dict.get():
+        >>> data = {"name": "Alice"}
+        >>> result = from_optional(data.get("name"), "name not found")
+        >>> result.map(str.upper).unwrap_or("UNKNOWN")
+        'ALICE'
     """
     if value is not None:
         return Ok(value)

@@ -1,0 +1,69 @@
+site_name: logerr
+site_description: Rust-like Option and Result types for Python with automatic logging
+site_author: Jess Robertson
+site_url: https://github.com/jess-robertson/logerr
+
+repo_name: jess-robertson/logerr
+repo_url: https://github.com/jess-robertson/logerr
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - User Guide:
+    - Getting Started: guide/getting-started.md
+    - Result Types: guide/result-types.md
+    - Option Types: guide/option-types.md
+    - Configuration: guide/configuration.md
+    - Examples: guide/examples.md
+  - API Reference:
+    - Result: api/result.md
+    - Option: api/option.md
+    - Configuration: api/config.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_members_full_path: false
+            merge_init_into_class: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
