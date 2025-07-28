@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from loguru import logger
 
 from .config import get_config, should_log_for_library, get_log_level_for_library
+from .protocols import SupportsComparison
 
 T = TypeVar('T')
 E = TypeVar('E')
@@ -257,6 +258,20 @@ class Ok(Result[T, E]):
     def unwrap_or(self, default: T) -> T:
         return self._value
     
+    def unwrap_err(self) -> E:
+        """Extract the error value, raising an exception if this is an Ok.
+        
+        Raises:
+            RuntimeError: Always, since Ok contains no error.
+            
+        Examples:
+            >>> ok = Ok(42)
+            >>> ok.unwrap_err()  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+            RuntimeError: Called unwrap_err on Ok: 42
+        """
+        raise RuntimeError(f"Called unwrap_err on Ok: {self._value}")
+    
     def unwrap_or_else(self, f: Callable[[E], T]) -> T:
         return self._value
     
@@ -283,6 +298,35 @@ class Ok(Result[T, E]):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Ok) and self._value == other._value
+    
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+    
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, Ok):
+            try:
+                return self._value < other._value
+            except TypeError:
+                return NotImplemented
+        elif isinstance(other, Err):
+            return False  # Ok is always greater than Err
+        return NotImplemented
+    
+    def __le__(self, other: object) -> bool:
+        return self.__eq__(other) or self.__lt__(other)
+    
+    def __gt__(self, other: object) -> bool:
+        if isinstance(other, Ok):
+            try:
+                return self._value > other._value
+            except TypeError:
+                return NotImplemented
+        elif isinstance(other, Err):
+            return True  # Ok is always greater than Err
+        return NotImplemented
+    
+    def __ge__(self, other: object) -> bool:
+        return self.__eq__(other) or self.__gt__(other)
 
 
 class Err(Result[T, E]):
@@ -430,6 +474,19 @@ class Err(Result[T, E]):
         else:
             raise RuntimeError(f"Called unwrap on Err: {self._error}")
     
+    def unwrap_err(self) -> E:
+        """Extract the error value from this Err.
+        
+        Returns:
+            The contained error value.
+            
+        Examples:
+            >>> err = Err.from_value("something went wrong")
+            >>> err.unwrap_err()
+            'something went wrong'
+        """
+        return self._error
+    
     def unwrap_or(self, default: T) -> T:
         return default
     
@@ -463,6 +520,35 @@ class Err(Result[T, E]):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Err) and self._error == other._error
+    
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+    
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, Err):
+            try:
+                return self._error < other._error
+            except TypeError:
+                return NotImplemented
+        elif isinstance(other, Ok):
+            return True  # Err is always less than Ok
+        return NotImplemented
+    
+    def __le__(self, other: object) -> bool:
+        return self.__eq__(other) or self.__lt__(other)
+    
+    def __gt__(self, other: object) -> bool:
+        if isinstance(other, Err):
+            try:
+                return self._error > other._error
+            except TypeError:
+                return NotImplemented
+        elif isinstance(other, Ok):
+            return False  # Err is never greater than Ok
+        return NotImplemented
+    
+    def __ge__(self, other: object) -> bool:
+        return self.__eq__(other) or self.__gt__(other)
 
 
 # Factory functions for creating Results
@@ -537,5 +623,76 @@ def from_optional(value: Optional[T], error: E) -> Result[T, E]:
         return Ok(value)
     else:
         return Err.from_value(error)
+
+
+def from_predicate(value: T, predicate: Callable[[T], bool], error: E) -> Result[T, E]:
+    """Create a Result based on whether a value satisfies a predicate.
+    
+    This function tests a value against a predicate function and returns
+    Ok(value) if the predicate passes, or Err(error) if it fails or raises
+    an exception.
+    
+    Args:
+        value: The value to test.
+        predicate: Function to test the value against.
+        error: The error value to return if predicate fails.
+        
+    Returns:
+        Ok(value) if predicate(value) is True, Err(error) otherwise.
+        
+    Examples:
+        Predicate passes:
+        >>> result = from_predicate(42, lambda x: x > 30, "too small")
+        >>> result.unwrap()
+        42
+        
+        Predicate fails:
+        >>> result = from_predicate(5, lambda x: x > 30, "too small")
+        >>> result.unwrap_or(0)
+        0
+        
+        Predicate raises exception:
+        >>> result = from_predicate("text", lambda s: int(s) > 0, "invalid")
+        >>> result.is_err()
+        True
+    """
+    try:
+        if predicate(value):
+            return Ok(value)
+        else:
+            return Err.from_value(error)
+    except Exception as e:
+        return Err.from_exception(e)
+
+
+def predicate_validator(predicate: Callable[[T], bool], error: E) -> Callable[[T], Result[T, E]]:
+    """Create a reusable predicate validator function.
+    
+    This function returns a curried version of from_predicate, allowing you to
+    create reusable validation functions that return Results.
+    
+    Args:
+        predicate: Function to test values against.
+        error: The error value to return if predicate fails.
+        
+    Returns:
+        A function that takes a value and returns a Result.
+        
+    Examples:
+        Create reusable validators:
+        >>> validate_positive = predicate_validator(lambda x: x > 0, "must be positive")
+        >>> validate_positive(42).unwrap()
+        42
+        >>> validate_positive(-5).is_err()
+        True
+        
+        Use with method chaining:
+        >>> email_validator = predicate_validator(lambda s: "@" in s, "invalid email format")
+        >>> Ok("user@example.com").and_then(email_validator).is_ok()
+        True
+    """
+    def validator_func(value: T) -> Result[T, E]:
+        return from_predicate(value, predicate, error)
+    return validator_func
 
 

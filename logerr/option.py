@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from loguru import logger
 
 from .config import get_config, should_log_for_library, get_log_level_for_library
+from .protocols import SupportsComparison
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -289,6 +290,35 @@ class Some(Option[T]):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Some) and self._value == other._value
+    
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+    
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, Some):
+            try:
+                return self._value < other._value
+            except TypeError:
+                return NotImplemented
+        elif isinstance(other, Nothing):
+            return False  # Some is always greater than Nothing
+        return NotImplemented
+    
+    def __le__(self, other: object) -> bool:
+        return self.__eq__(other) or self.__lt__(other)
+    
+    def __gt__(self, other: object) -> bool:
+        if isinstance(other, Some):
+            try:
+                return self._value > other._value
+            except TypeError:
+                return NotImplemented
+        elif isinstance(other, Nothing):
+            return True  # Some is always greater than Nothing
+        return NotImplemented
+    
+    def __ge__(self, other: object) -> bool:
+        return self.__eq__(other) or self.__gt__(other)
 
 
 class Nothing(Option[T]):
@@ -502,6 +532,31 @@ class Nothing(Option[T]):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Nothing) and self._reason == other._reason
+    
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+    
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, Some):
+            return True  # Nothing is always less than Some
+        elif isinstance(other, Nothing):
+            return False  # Nothing values are equal in ordering
+        return NotImplemented
+    
+    def __le__(self, other: object) -> bool:
+        if isinstance(other, Nothing):
+            return True  # Nothing values are equal in ordering
+        return self.__eq__(other) or self.__lt__(other)
+    
+    def __gt__(self, other: object) -> bool:
+        if isinstance(other, (Some, Nothing)):
+            return False  # Nothing is never greater than anything
+        return NotImplemented
+    
+    def __ge__(self, other: object) -> bool:
+        if isinstance(other, Nothing):
+            return True  # Nothing values are equal in ordering
+        return self.__eq__(other) or self.__gt__(other)
 
 
 # Factory functions for creating Options
@@ -586,7 +641,7 @@ def from_callable(f: Callable[[], Optional[T]]) -> Option[T]:
         return Nothing.from_exception(e)
 
 
-def from_predicate(value: T, predicate: Callable[[T], bool]) -> Option[T]:
+def from_predicate(value: T, predicate: Callable[[T], bool], *, error_message: Optional[str] = None) -> Option[T]:
     """Create an Option based on whether a value satisfies a predicate.
     
     This function tests a value against a predicate function and returns
@@ -596,6 +651,8 @@ def from_predicate(value: T, predicate: Callable[[T], bool]) -> Option[T]:
     Args:
         value: The value to test.
         predicate: Function to test the value against.
+        error_message: Custom error message for predicate failure. If None, 
+                      a default message will be generated.
         
     Returns:
         Some(value) if predicate(value) is True, Nothing otherwise.
@@ -611,6 +668,11 @@ def from_predicate(value: T, predicate: Callable[[T], bool]) -> Option[T]:
         >>> option.unwrap_or(0)
         0
         
+        With custom error message:
+        >>> option = from_predicate(5, lambda x: x > 30, error_message="Number too small")
+        >>> option.is_nothing()
+        True
+        
         With string validation:
         >>> option = from_predicate("hello@example.com", lambda s: "@" in s)
         >>> option.map(str.upper).unwrap_or("INVALID")
@@ -625,8 +687,40 @@ def from_predicate(value: T, predicate: Callable[[T], bool]) -> Option[T]:
         if predicate(value):
             return Some(value)
         else:
-            return Nothing.from_filter(f"Value {value} failed predicate")
+            message = error_message or f"Value {value} failed predicate"
+            return Nothing.from_filter(message)
     except Exception as e:
         return Nothing.from_exception(e)
+
+
+def predicate_filter(predicate: Callable[[T], bool], *, error_message: Optional[str] = None) -> Callable[[T], Option[T]]:
+    """Create a reusable predicate filter function.
+    
+    This function returns a curried version of from_predicate, allowing you to
+    create reusable validation functions.
+    
+    Args:
+        predicate: Function to test values against.
+        error_message: Custom error message for predicate failure.
+        
+    Returns:
+        A function that takes a value and returns an Option.
+        
+    Examples:
+        Create reusable validators:
+        >>> is_positive = predicate_filter(lambda x: x > 0, error_message="Must be positive")
+        >>> is_positive(42).unwrap()
+        42
+        >>> is_positive(-5).is_nothing()
+        True
+        
+        Use with method chaining:
+        >>> email_validator = predicate_filter(lambda s: "@" in s, error_message="Invalid email")
+        >>> Some("user@example.com").and_then(lambda email: email_validator(email)).is_some()
+        True
+    """
+    def filter_func(value: T) -> Option[T]:
+        return from_predicate(value, predicate, error_message=error_message)
+    return filter_func
 
 
