@@ -270,7 +270,7 @@ class Nothing(Option[T]):
 
 
 # Convenience functions for creating Options
-def option_from_nullable(value: Optional[T]) -> Option[T]:
+def from_nullable(value: Optional[T]) -> Option[T]:
     """
     Convert a nullable value to an Option.
     """
@@ -280,7 +280,7 @@ def option_from_nullable(value: Optional[T]) -> Option[T]:
         return Nothing.from_none()
 
 
-def option_from_callable(f: Callable[[], Optional[T]]) -> Option[T]:
+def from_callable(f: Callable[[], Optional[T]]) -> Option[T]:
     """
     Execute a callable and return Some(result) or Nothing.
     """
@@ -294,7 +294,7 @@ def option_from_callable(f: Callable[[], Optional[T]]) -> Option[T]:
         return Nothing.from_exception(e)
 
 
-def option_from_predicate(value: T, predicate: Callable[[T], bool]) -> Option[T]:
+def from_predicate(value: T, predicate: Callable[[T], bool]) -> Option[T]:
     """
     Create an Option based on whether a value satisfies a predicate.
     """
@@ -305,3 +305,5 @@ def option_from_predicate(value: T, predicate: Callable[[T], bool]) -> Option[T]
             return Nothing.from_filter(f"Value {value} failed predicate")
     except Exception as e:
         return Nothing.from_exception(e)
+
+

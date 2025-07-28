@@ -6,7 +6,8 @@ import pytest
 from unittest.mock import patch
 from loguru import logger
 
-from logerr import Result, Ok, Err, result_from_callable, configure
+import logerr
+from logerr import Result, Ok, Err, configure
 
 
 class TestOk:
@@ -73,12 +74,12 @@ class TestResultFactories:
     """Tests for Result factory functions."""
     
     def test_result_from_callable_success(self):
-        result = result_from_callable(lambda: 42)
+        result = logerr.result.from_callable(lambda: 42)
         assert isinstance(result, Ok)
         assert result.unwrap() == 42
     
     def test_result_from_callable_exception(self):
-        result = result_from_callable(lambda: 1 / 0)
+        result = logerr.result.from_callable(lambda: 1 / 0)
         assert isinstance(result, Err)
         assert isinstance(result._error, ZeroDivisionError)
 

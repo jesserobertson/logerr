@@ -6,7 +6,8 @@ import pytest
 from unittest.mock import patch
 from loguru import logger
 
-from logerr import Option, Some, Nothing, option_from_nullable, option_from_callable, option_from_predicate, configure
+import logerr
+from logerr import Option, Some, Nothing, configure
 
 
 class TestSome:
@@ -129,38 +130,38 @@ class TestOptionFactories:
     """Tests for Option factory functions."""
     
     def test_option_from_nullable_some(self):
-        option = option_from_nullable(42)
+        option = logerr.option.from_nullable(42)
         assert isinstance(option, Some)
         assert option.unwrap() == 42
     
     def test_option_from_nullable_nothing(self):
-        option = option_from_nullable(None)
+        option = logerr.option.from_nullable(None)
         assert isinstance(option, Nothing)
     
     def test_option_from_callable_some(self):
-        option = option_from_callable(lambda: 42)
+        option = logerr.option.from_callable(lambda: 42)
         assert isinstance(option, Some)
         assert option.unwrap() == 42
     
     def test_option_from_callable_none(self):
-        option = option_from_callable(lambda: None)
+        option = logerr.option.from_callable(lambda: None)
         assert isinstance(option, Nothing)
     
     def test_option_from_callable_exception(self):
-        option = option_from_callable(lambda: 1 / 0)
+        option = logerr.option.from_callable(lambda: 1 / 0)
         assert isinstance(option, Nothing)
     
     def test_option_from_predicate_success(self):
-        option = option_from_predicate(42, lambda x: x > 30)
+        option = logerr.option.from_predicate(42, lambda x: x > 30)
         assert isinstance(option, Some)
         assert option.unwrap() == 42
     
     def test_option_from_predicate_failure(self):
-        option = option_from_predicate(42, lambda x: x > 50)
+        option = logerr.option.from_predicate(42, lambda x: x > 50)
         assert isinstance(option, Nothing)
     
     def test_option_from_predicate_exception(self):
-        option = option_from_predicate(42, lambda x: 1 / 0)
+        option = logerr.option.from_predicate(42, lambda x: 1 / 0)
         assert isinstance(option, Nothing)
 
 

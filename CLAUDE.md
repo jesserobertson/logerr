@@ -62,6 +62,35 @@ The library aims to replicate Rust's Option and Result types with Python's type 
 - Automatic logging integration for error cases
 - Configuration-driven behavior through confection
 
+## API Structure
+
+The library provides a clean, namespaced API:
+
+### Direct Type Imports
+```python
+from logerr import Ok, Err, Some, Nothing
+```
+
+### Factory Functions (Namespaced)
+```python
+import logerr
+
+# Result factories
+result = logerr.result.from_callable(lambda: some_function())
+result = logerr.result.from_optional(maybe_value, "was None")
+
+# Option factories  
+option = logerr.option.from_nullable(dict.get("key"))
+option = logerr.option.from_callable(lambda: expensive_computation())
+option = logerr.option.from_predicate(value, lambda x: x > 0)
+```
+
+### Configuration
+```python
+logerr.configure({"level": "WARNING", "libraries": {"mylib": {"level": "DEBUG"}}})
+```
+
+
 ## Configuration
 
 - **Platform**: macOS ARM64 (osx-arm64)

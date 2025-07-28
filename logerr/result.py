@@ -253,7 +253,7 @@ class Err(Result[T, E]):
 
 
 # Convenience functions for creating Results
-def result_from_callable(f: Callable[[], T]) -> Result[T, Exception]:
+def from_callable(f: Callable[[], T]) -> Result[T, Exception]:
     """
     Execute a callable and return Ok(result) or Err(exception).
     """
@@ -263,7 +263,7 @@ def result_from_callable(f: Callable[[], T]) -> Result[T, Exception]:
         return Err.from_exception(e)
 
 
-def result_from_optional(value: Optional[T], error: E) -> Result[T, E]:
+def from_optional(value: Optional[T], error: E) -> Result[T, E]:
     """
     Convert an Optional value to a Result.
     """
@@ -271,3 +271,5 @@ def result_from_optional(value: Optional[T], error: E) -> Result[T, E]:
         return Ok(value)
     else:
         return Err.from_value(error)
+
+
