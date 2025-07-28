@@ -1,0 +1,24 @@
+[workspace]
+authors = ["Jess Robertson <jess.robertson@niwa.co.nz>"]
+channels = ["conda-forge"]
+name = "logerr"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+loguru = ">=0.7.3,<0.8"
+confection = ">=0.1.5,<0.2"
+
+[feature.dev.dependencies]
+pytest = "*"
+hypothesis = "*"
+mypy = "*"
+
+[feature.dev.tasks]
+test = "pytest tests/ -v"
+typecheck = "mypy logerr"
+
+[environments]
+dev = ["dev"]
