@@ -213,6 +213,35 @@ class Option[T](ABC):
         """
         pass
 
+    @classmethod
+    def from_nullable(cls, value: T | None) -> Option[T]:
+        """Create an Option from a potentially None value."""
+        from . import option as option_module
+
+        return option_module.from_nullable(value)
+
+    @classmethod
+    def from_callable(cls, f: Callable[[], T | None]) -> Option[T]:
+        """Create an Option from a callable that might return None."""
+        from . import option as option_module
+
+        return option_module.from_callable(f)
+
+    @classmethod
+    def from_predicate(
+        cls,
+        value: T,
+        predicate: Callable[[T], bool],
+        *,
+        error_message: str | None = None,
+    ) -> Option[T]:
+        """Create an Option based on whether a predicate is satisfied."""
+        from . import option as option_module
+
+        return option_module.from_predicate(
+            value, predicate, error_message=error_message
+        )
+
 
 class Some(Option[T]):
     """Represents an option containing a value.

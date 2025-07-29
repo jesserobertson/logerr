@@ -216,6 +216,29 @@ class Result[T, E](ABC):
         """
         pass
 
+    @classmethod
+    def from_callable(cls, f: Callable[[], T]) -> Result[T, Exception]:
+        """Create a Result from a callable that might raise an exception."""
+        from . import result as result_module
+
+        return result_module.from_callable(f)
+
+    @classmethod
+    def from_optional(cls, value: T | None, error: E) -> Result[T, E]:
+        """Create a Result from an optional value."""
+        from . import result as result_module
+
+        return result_module.from_optional(value, error)
+
+    @classmethod
+    def from_predicate(
+        cls, value: T, predicate: Callable[[T], bool], error: E
+    ) -> Result[T, E]:
+        """Create a Result based on whether a predicate is satisfied."""
+        from . import result as result_module
+
+        return result_module.from_predicate(value, predicate, error)
+
 
 class Ok(Result[T, E]):
     """Represents a successful result containing a value.

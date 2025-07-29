@@ -40,16 +40,16 @@ The most common way to create Options is through factory functions:
 Converts a potentially None value into an Option:
 
 ```python
-import logerr
+from logerr import Option
 
 config = {"database_url": "postgres://localhost/db", "debug": True}
 
 # Present value
-option = logerr.option.from_nullable(config.get("database_url"))
+option = Option.from_nullable(config.get("database_url"))
 print(option.unwrap())  # "postgres://localhost/db"
 
 # Absent value
-option = logerr.option.from_nullable(config.get("missing_key"))
+option = Option.from_nullable(config.get("missing_key"))
 print(option.is_nothing())  # True
 print(option.unwrap_or("default"))  # "default"
 ```
@@ -59,7 +59,7 @@ print(option.unwrap_or("default"))  # "default"
 Wraps a callable that might return None:
 
 ```python
-import logerr
+from logerr import Option
 
 # Function that might return None
 def find_user(user_id: int):
@@ -67,11 +67,11 @@ def find_user(user_id: int):
     return users.get(user_id)
 
 # Present value
-option = logerr.option.from_callable(lambda: find_user(1))
+option = Option.from_callable(lambda: find_user(1))
 print(option.unwrap())  # "Alice"
 
 # Absent value
-option = logerr.option.from_callable(lambda: find_user(99))
+option = Option.from_callable(lambda: find_user(99))
 print(option.is_nothing())  # True
 ```
 
@@ -80,18 +80,18 @@ print(option.is_nothing())  # True
 Creates an Option based on whether a predicate is satisfied:
 
 ```python
-import logerr
+from logerr import Option
 
 # Predicate satisfied
-option = logerr.option.from_predicate(42, lambda x: x > 0)
+option = Option.from_predicate(42, lambda x: x > 0)
 print(option.unwrap())  # 42
 
 # Predicate not satisfied
-option = logerr.option.from_predicate(-5, lambda x: x > 0)
+option = Option.from_predicate(-5, lambda x: x > 0)
 print(option.is_nothing())  # True
 
 # With custom message for logging
-option = logerr.option.from_predicate(-5, lambda x: x > 0, "Value must be positive")
+option = Option.from_predicate(-5, lambda x: x > 0, error_message="Value must be positive")
 print(option.unwrap_or(0))  # 0
 ```
 
@@ -188,14 +188,14 @@ print(option.is_nothing())  # True
 Chain operations that return Options:
 
 ```python
-import logerr
+from logerr import Option, Some
 
-def find_user(user_id: int) -> logerr.Option[dict]:
+def find_user(user_id: int) -> Option[dict]:
     users = {1: {"name": "Alice", "age": 30}, 2: {"name": "Bob", "age": 25}}
-    return logerr.option.from_nullable(users.get(user_id))
+    return Option.from_nullable(users.get(user_id))
 
-def get_user_name(user: dict) -> logerr.Option[str]:
-    return logerr.option.from_nullable(user.get("name"))
+def get_user_name(user: dict) -> Option[str]:
+    return Option.from_nullable(user.get("name"))
 
 # Chain multiple operations
 result = (Some(1)
@@ -208,7 +208,7 @@ print(result.unwrap())  # "Alice"
 ### `or_else()` - Alternative Values
 
 ```python
-import logerr
+from logerr import Some, Nothing
 
 def get_default_config():
     """Provide default configuration."""
@@ -226,9 +226,9 @@ print(config.unwrap())  # {"theme": "default", "language": "en"}
 Options support fluent method chaining for complex operations:
 
 ```python
-import logerr
+from logerr import Option, Some, Nothing
 
-def parse_int(s: str) -> logerr.Option[int]:
+def parse_int(s: str) -> Option[int]:
     """Parse string to int, returning None on failure."""
     try:
         return Some(int(s))
@@ -239,7 +239,7 @@ def is_even(n: int) -> bool:
     return n % 2 == 0
 
 # Complex pipeline
-result = (logerr.option.from_nullable("42")
+result = (Option.from_nullable("42")
     .and_then(parse_int)
     .filter(is_even)
     .map(lambda x: x * 2)
@@ -253,7 +253,7 @@ print(result)  # 84
 Handle both present and absent cases in a single expression:
 
 ```python
-import logerr
+from logerr import Some, Nothing
 
 def find_item(items: list, predicate):
     for item in items:
@@ -296,17 +296,17 @@ assert Nothing.empty() == Nothing.empty()
 Options work well with collection operations:
 
 ```python
-import logerr
+from logerr import Option, Some, Nothing
 from typing import List
 
-def first_even(numbers: List[int]) -> logerr.Option[int]:
+def first_even(numbers: List[int]) -> Option[int]:
     """Find the first even number in a list."""
     for num in numbers:
         if num % 2 == 0:
             return Some(num)
     return Nothing.empty()
 
-def safe_divide(a: int, b: int) -> logerr.Option[float]:
+def safe_divide(a: int, b: int) -> Option[float]:
     """Safe division returning None for division by zero."""
     if b == 0:
         return Nothing("Division by zero")
@@ -327,7 +327,7 @@ print(result)  # 12.5 (100 / 8)
 Here's a complete example showing how Options can be used for configuration management:
 
 ```python
-import logerr
+from logerr import Option
 from typing import Dict, Optional
 import os
 
@@ -335,16 +335,16 @@ class ConfigManager:
     def __init__(self, config_dict: Dict[str, str]):
         self.config = config_dict
     
-    def get_string(self, key: str) -> logerr.Option[str]:
+    def get_string(self, key: str) -> Option[str]:
         """Get a string configuration value."""
-        return logerr.option.from_nullable(self.config.get(key))
+        return Option.from_nullable(self.config.get(key))
     
-    def get_int(self, key: str) -> logerr.Option[int]:
+    def get_int(self, key: str) -> Option[int]:
         """Get an integer configuration value."""
         return (self.get_string(key)
-            .and_then(lambda s: logerr.option.from_callable(lambda: int(s))))
+            .and_then(lambda s: Option.from_callable(lambda: int(s))))
     
-    def get_bool(self, key: str) -> logerr.Option[bool]:
+    def get_bool(self, key: str) -> Option[bool]:
         """Get a boolean configuration value."""
         return (self.get_string(key)
             .map(str.lower)

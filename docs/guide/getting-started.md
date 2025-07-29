@@ -31,8 +31,8 @@ pip install -e .
 # Direct imports for the main types
 from logerr import Ok, Err, Some, Nothing
 
-# Module imports for factory functions
-import logerr
+# Import the main types
+from logerr import Result, Option
 ```
 
 ### Working with Results
@@ -95,47 +95,47 @@ The cleanest way to create Results and Options is through factory functions:
 ### Result Factories
 
 ```python
-import logerr
+from logerr import Result
 
 # From a callable that might raise
-result = logerr.result.from_callable(lambda: int("42"))
-print(result.unwrap())  # 42
+result_value = Result.from_callable(lambda: int("42"))
+print(result_value.unwrap())  # 42
 
-result = logerr.result.from_callable(lambda: int("not a number"))
-print(result.is_err())  # True - exception was caught and logged
+result_value = Result.from_callable(lambda: int("not a number"))
+print(result_value.is_err())  # True - exception was caught and logged
 
 # From an optional value
 data = {"name": "Alice"}
-result = logerr.result.from_optional(data.get("name"), "name not found")
-print(result.unwrap())  # "Alice"
+result_value = Result.from_optional(data.get("name"), "name not found")
+print(result_value.unwrap())  # "Alice"
 
-result = logerr.result.from_optional(data.get("age"), "age not found") 
-print(result.unwrap_or(0))  # 0
+result_value = Result.from_optional(data.get("age"), "age not found") 
+print(result_value.unwrap_or(0))  # 0
 ```
 
 ### Option Factories
 
 ```python
-import logerr
+from logerr import Option
 
 # From a nullable value
 config = {"database_url": "postgres://localhost/db"}
-option = logerr.option.from_nullable(config.get("database_url"))
-print(option.unwrap())  # "postgres://localhost/db"
+option_value = Option.from_nullable(config.get("database_url"))
+print(option_value.unwrap())  # "postgres://localhost/db"
 
-option = logerr.option.from_nullable(config.get("missing_key"))
-print(option.is_nothing())  # True
+option_value = Option.from_nullable(config.get("missing_key"))
+print(option_value.is_nothing())  # True
 
 # From a callable that might return None
-option = logerr.option.from_callable(lambda: config.get("database_url"))
-print(option.is_some())  # True
+option_value = Option.from_callable(lambda: config.get("database_url"))
+print(option_value.is_some())  # True
 
 # From a predicate
-option = logerr.option.from_predicate(42, lambda x: x > 0)
-print(option.unwrap())  # 42
+option_value = Option.from_predicate(42, lambda x: x > 0)
+print(option_value.unwrap())  # 42
 
-option = logerr.option.from_predicate(-5, lambda x: x > 0)
-print(option.is_nothing())  # True
+option_value = Option.from_predicate(-5, lambda x: x > 0)
+print(option_value.is_nothing())  # True
 ```
 
 ## Automatic Logging
@@ -143,17 +143,16 @@ print(option.is_nothing())  # True
 One of the key features of `logerr` is automatic logging of error cases:
 
 ```python
-from logerr import Err
-import logerr
+from logerr import Err, Result, configure
 
 # This automatically logs the error
 error_result = Err("database connection failed")
 
 # This also logs when the callable fails
-result = logerr.result.from_callable(lambda: 1 / 0)
+result_value = Result.from_callable(lambda: 1 / 0)
 
 # Configure logging levels
-logerr.configure({
+configure({
     "level": "WARNING",
     "libraries": {
         "myapp": {"level": "DEBUG"}
@@ -166,17 +165,17 @@ logerr.configure({
 Both Result and Option types support fluent method chaining:
 
 ```python
-import logerr
+from logerr import Result
 import json
 
 # Complex pipeline with error handling
-result = (logerr.result.from_callable(lambda: open("config.json").read())
-    .and_then(lambda text: logerr.result.from_callable(lambda: json.loads(text)))
+result_value = (Result.from_callable(lambda: open("config.json").read())
+    .and_then(lambda text: Result.from_callable(lambda: json.loads(text)))
     .map(lambda config: config.get("database_url"))
-    .and_then(lambda url: logerr.result.from_optional(url, "No database URL in config"))
+    .and_then(lambda url: Result.from_optional(url, "No database URL in config"))
     .unwrap_or("sqlite:///default.db"))
 
-print(f"Database URL: {result}")
+print(f"Database URL: {result_value}")
 ```
 
 ## Error Recovery
@@ -184,15 +183,15 @@ print(f"Database URL: {result}")
 Handle errors gracefully with recovery methods:
 
 ```python
-import logerr
+from logerr import Result, Err
 
 def retry_operation(error):
     """Retry logic for failed operations."""
     if "timeout" in str(error):
-        return logerr.result.from_callable(lambda: "retry successful")
+        return Result.from_callable(lambda: "retry successful")
     return Err("permanent failure")
 
-result = (logerr.result.from_callable(lambda: raise_timeout_error())
+result_value = (Result.from_callable(lambda: raise_timeout_error())
     .or_else(retry_operation)
     .unwrap_or("fallback value"))
 ```

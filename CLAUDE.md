@@ -112,18 +112,18 @@ from logerr import Ok, Err, Some, Nothing, Result, Option
 from logerr import configure, configure_from_confection, get_config, reset_config
 ```
 
-### Factory Functions (Namespaced)
+### Factory Functions (Class Methods)
 ```python
-import logerr
+from logerr import Result, Option
 
 # Result factories
-result = logerr.result.from_callable(lambda: some_function())
-result = logerr.result.from_optional(maybe_value, "was None")
+result = Result.from_callable(lambda: some_function())
+result = Result.from_optional(maybe_value, "was None")
 
 # Option factories  
-option = logerr.option.from_nullable(dict.get("key"))
-option = logerr.option.from_callable(lambda: expensive_computation())
-option = logerr.option.from_predicate(value, lambda x: x > 0)
+option = Option.from_nullable(dict.get("key"))
+option = Option.from_callable(lambda: expensive_computation())
+option = Option.from_predicate(value, lambda x: x > 0)
 ```
 
 ### Configuration Examples

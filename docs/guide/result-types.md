@@ -36,14 +36,14 @@ The most common way to create Results is through factory functions:
 Wraps a callable that might raise an exception:
 
 ```python
-import logerr
+from logerr import Result
 
 # Success case
-result = logerr.result.from_callable(lambda: int("42"))
+result = Result.from_callable(lambda: int("42"))
 print(result.unwrap())  # 42
 
 # Error case - exception caught automatically
-result = logerr.result.from_callable(lambda: int("not a number"))
+result = Result.from_callable(lambda: int("not a number"))
 print(result.is_err())  # True
 print(result.unwrap_or(0))  # 0
 ```
@@ -53,16 +53,16 @@ print(result.unwrap_or(0))  # 0
 Converts an optional value (might be None) into a Result:
 
 ```python
-import logerr
+from logerr import Result
 
 data = {"name": "Alice", "age": 30}
 
 # Success case
-result = logerr.result.from_optional(data.get("name"), "Name not found")
+result = Result.from_optional(data.get("name"), "Name not found")
 print(result.unwrap())  # "Alice"
 
 # Error case
-result = logerr.result.from_optional(data.get("email"), "Email not found")
+result = Result.from_optional(data.get("email"), "Email not found")
 print(result.unwrap_or("no-email@example.com"))  # "no-email@example.com"
 ```
 
@@ -155,14 +155,14 @@ print(result.unwrap_err())  # "FAIL"
 Chain operations that return Results:
 
 ```python
-import logerr
+from logerr import Result, Ok
 import json
 
-def parse_json(text: str) -> logerr.Result[dict, str]:
-    return logerr.result.from_callable(lambda: json.loads(text))
+def parse_json(text: str) -> Result[dict, str]:
+    return Result.from_callable(lambda: json.loads(text))
 
-def get_field(data: dict, field: str) -> logerr.Result[str, str]:
-    return logerr.result.from_optional(data.get(field), f"Missing field: {field}")
+def get_field(data: dict, field: str) -> Result[str, str]:
+    return Result.from_optional(data.get(field), f"Missing field: {field}")
 
 # Chain multiple operations
 result = (Ok('{"name": "Alice", "age": 30}')
@@ -175,7 +175,7 @@ print(result.unwrap())  # "Alice"
 ### `or_else()` - Error Recovery
 
 ```python
-import logerr
+from logerr import Ok, Err
 
 def retry_operation(error):
     """Try an alternative on failure."""
@@ -194,21 +194,21 @@ print(result.unwrap())  # "recovered from timeout"
 Results support fluent method chaining for complex operations:
 
 ```python
-import logerr
+from logerr import Result
 import json
 from pathlib import Path
 
-def load_config(path: str) -> logerr.Result[dict, str]:
+def load_config(path: str) -> Result[dict, str]:
     """Load and parse configuration file."""
-    return (logerr.result.from_callable(lambda: Path(path).read_text())
+    return (Result.from_callable(lambda: Path(path).read_text())
         .map_err(lambda e: f"Failed to read {path}: {e}")
-        .and_then(lambda text: logerr.result.from_callable(lambda: json.loads(text)))
+        .and_then(lambda text: Result.from_callable(lambda: json.loads(text)))
         .map_err(lambda e: f"Failed to parse JSON: {e}"))
 
-def get_database_config(config: dict) -> logerr.Result[str, str]:
+def get_database_config(config: dict) -> Result[str, str]:
     """Extract database URL from config."""
-    return (logerr.result.from_optional(config.get("database"), "No database config")
-        .and_then(lambda db: logerr.result.from_optional(db.get("url"), "No database URL")))
+    return (Result.from_optional(config.get("database"), "No database config")
+        .and_then(lambda db: Result.from_optional(db.get("url"), "No database URL")))
 
 # Usage
 config_result = load_config("app.json")
@@ -225,9 +225,9 @@ else:
 Handle both success and error cases in a single expression:
 
 ```python
-import logerr
+from logerr import Result, Ok, Err
 
-def divide(a: float, b: float) -> logerr.Result[float, str]:
+def divide(a: float, b: float) -> Result[float, str]:
     if b == 0:
         return Err("Division by zero")
     return Ok(a / b)
@@ -268,20 +268,20 @@ assert Ok(1) > Err("anything")
 Here's a complete example showing how Results can be used for file processing:
 
 ```python
-import logerr
+from logerr import Result, Ok, Err
 import json
 from pathlib import Path
 from typing import Dict, List
 
-def read_file(path: str) -> logerr.Result[str, str]:
+def read_file(path: str) -> Result[str, str]:
     """Read file contents."""
-    return logerr.result.from_callable(lambda: Path(path).read_text())
+    return Result.from_callable(lambda: Path(path).read_text())
 
-def parse_json(content: str) -> logerr.Result[dict, str]:
+def parse_json(content: str) -> Result[dict, str]:
     """Parse JSON content."""
-    return logerr.result.from_callable(lambda: json.loads(content))
+    return Result.from_callable(lambda: json.loads(content))
 
-def validate_config(config: dict) -> logerr.Result[dict, str]:
+def validate_config(config: dict) -> Result[dict, str]:
     """Validate configuration has required fields."""
     required_fields = ["name", "version", "database"]
     for field in required_fields:
@@ -289,7 +289,7 @@ def validate_config(config: dict) -> logerr.Result[dict, str]:
             return Err(f"Missing required field: {field}")
     return Ok(config)
 
-def process_config_file(path: str) -> logerr.Result[dict, str]:
+def process_config_file(path: str) -> Result[dict, str]:
     """Complete config file processing pipeline."""
     return (read_file(path)
         .and_then(parse_json)

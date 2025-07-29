@@ -21,18 +21,17 @@
 ## 🚀 Quick Start
 
 ```python
-import logerr
-from logerr import Ok, Err, Some, Nothing
+from logerr import Result, Ok, Err, Some, Nothing
 
 # Handle operations that might fail
 def risky_operation():
     raise ConnectionError("Database connection failed")
 
-result = logerr.result.from_callable(risky_operation)
-if result.is_ok():
-    print(f"Success: {result.unwrap()}")
+result_value = Result.from_callable(risky_operation)
+if result_value.is_ok():
+    print(f"Success: {result_value.unwrap()}")
 else:
-    print(f"Failed: {result.unwrap_or('unknown error')}")
+    print(f"Failed: {result_value.unwrap_or('unknown error')}")
     # 🪵 Automatic logging output:
     # 2024-01-15 14:23:12.345 | ERROR | logerr.result:425 - Result error in risky_operation:2 - Database connection failed
 ```
@@ -40,9 +39,11 @@ else:
 **✨ The key difference:** Errors are **automatically logged** with full context - no manual logging required!
 
 ```python
+from logerr import Option
+
 # Work with optional values
 user_data = {"name": "Alice"}
-email = logerr.option.from_nullable(user_data.get("email"))
+email = Option.from_nullable(user_data.get("email"))
 contact = email.unwrap_or("no-email@example.com")
 # 🪵 Automatic logging output:
 # 2024-01-15 14:23:12.456 | WARNING | logerr.option:421 - Option Nothing in from_nullable:1 - Value was None
@@ -86,8 +87,10 @@ if config is None:
 
 **With logerr** (automatic logging):
 ```python
+from logerr import Result
+
 def load_config():
-    return logerr.result.from_callable(lambda: json.load(open("config.json")))
+    return Result.from_callable(lambda: json.load(open("config.json")))
 
 config = load_config().unwrap_or({})
 # 🪵 Automatically logs:
@@ -123,16 +126,16 @@ config = load_config().unwrap_or({})
 ### Database Connection with Retry Logic
 
 ```python
-import logerr
+from logerr import Result, Err
 from typing import Any
 
-def connect_to_database(url: str) -> logerr.Result[Any, str]:
-    return logerr.result.from_callable(lambda: database.connect(url))
+def connect_to_database(url: str) -> Result[Any, str]:
+    return Result.from_callable(lambda: database.connect(url))
 
-def with_retry(error: str) -> logerr.Result[Any, str]:
+def with_retry(error: str) -> Result[Any, str]:
     if "timeout" in error.lower():
         return connect_to_database("backup-server.db")
-    return logerr.Err(f"Connection failed: {error}")
+    return Err(f"Connection failed: {error}")
 
 # Automatic retry with logging
 connection = (connect_to_database("primary-server.db")
@@ -148,23 +151,23 @@ else:
 ### Configuration Loading Pipeline
 
 ```python
-import logerr
+from logerr import Result, Ok, Err
 import json
 from pathlib import Path
 
-def load_config(path: str) -> logerr.Result[dict, str]:
+def load_config(path: str) -> Result[dict, str]:
     """Load and validate configuration file."""
-    return (logerr.result.from_callable(lambda: Path(path).read_text())
-        .and_then(lambda text: logerr.result.from_callable(lambda: json.loads(text)))
+    return (Result.from_callable(lambda: Path(path).read_text())
+        .and_then(lambda text: Result.from_callable(lambda: json.loads(text)))
         .and_then(validate_config)
         .map_err(lambda e: f"Config error in {path}: {e}"))
 
-def validate_config(config: dict) -> logerr.Result[dict, str]:
+def validate_config(config: dict) -> Result[dict, str]:
     required_keys = ["database_url", "api_key"]
     missing = [key for key in required_keys if key not in config]
     if missing:
-        return logerr.Err(f"Missing required keys: {missing}")
-    return logerr.Ok(config)
+        return Err(f"Missing required keys: {missing}")
+    return Ok(config)
 
 # Load with automatic error logging
 config = load_config("app.json").unwrap_or({
@@ -176,13 +179,13 @@ config = load_config("app.json").unwrap_or({
 ### Safe Data Processing
 
 ```python
-import logerr
+from logerr import Option
 
-def process_user_data(data: dict) -> logerr.Option[str]:
+def process_user_data(data: dict) -> Option[str]:
     """Extract and format user display name."""
-    return (logerr.option.from_nullable(data.get("user"))
-        .and_then(lambda user: logerr.option.from_nullable(user.get("profile")))
-        .and_then(lambda profile: logerr.option.from_nullable(profile.get("name")))
+    return (Option.from_nullable(data.get("user"))
+        .and_then(lambda user: Option.from_nullable(user.get("profile")))
+        .and_then(lambda profile: Option.from_nullable(profile.get("name")))
         .filter(lambda name: len(name.strip()) > 0)
         .map(str.title))
 
