@@ -29,6 +29,9 @@ jobs:
     - name: Run all checks
       run: pixi run -e dev check-all
 
+    - name: Run coverage 
+      run: pixi run -e dev test --cov-report=xml
+
     - name: Upload coverage reports
       if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v4
