@@ -35,6 +35,15 @@ class TestOk:
         assert isinstance(chained, Ok)
         assert chained.unwrap() == 84
     
+    def test_ok_and_then_exception_handling(self):
+        """Test that Ok.and_then handles exceptions in callback functions."""
+        def failing_func(x):
+            raise ValueError("test error")
+        
+        result = Ok(42).and_then(failing_func)
+        assert result.is_err()
+        assert isinstance(result, Err)
+    
     def test_ok_map_with_exception(self):
         result = Ok(42)
         mapped = result.map(lambda x: 1 / 0)  # Will raise ZeroDivisionError

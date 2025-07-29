@@ -65,6 +65,15 @@ class TestSome:
         option = Some(42)
         mapped = option.map(lambda x: None)  # Returns None
         assert isinstance(mapped, Nothing)
+    
+    def test_some_and_then_exception_handling(self):
+        """Test that Some.and_then handles exceptions in callback functions."""
+        def failing_func(x):
+            raise ValueError("test error")
+        
+        result = Some(42).and_then(failing_func)
+        assert result.is_nothing()
+        assert isinstance(result, Nothing)
 
 
 class TestNothing:
@@ -87,6 +96,15 @@ class TestNothing:
     def test_nothing_unwrap_or_else(self):
         option = Nothing("test reason")
         assert option.unwrap_or_else(lambda: 42) == 42
+    
+    def test_nothing_unwrap_or_else_exception(self):
+        """Test that Nothing.unwrap_or_else handles exceptions in callback functions."""
+        def failing_func():
+            raise RuntimeError("callback failed")
+        
+        nothing = Nothing("test reason")
+        with pytest.raises(ValueError, match="unwrap_or_else function failed"):
+            nothing.unwrap_or_else(failing_func)
     
     def test_nothing_map_returns_nothing(self):
         option = Nothing("test reason")
@@ -223,6 +241,39 @@ class TestLogging:
         
         # Reset config
         configure({"libraries": {}})
+    
+    def test_should_log_when_disabled(self):
+        """Test should_log_for_library when logging is disabled globally."""
+        from logerr.config import should_log_for_library
+        
+        configure({"enabled": False})
+        assert not should_log_for_library("test")
+        
+        # Reset config
+        configure({"enabled": True})
+    
+    def test_configure_from_confection_no_logerr_key(self):
+        """Test configure_from_confection when config file doesn't contain 'logerr' key."""
+        from logerr.config import configure_from_confection, get_config
+        
+        # Create a temporary config file without 'logerr' section
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.cfg', delete=False) as f:
+            f.write('[other_section]\nsome_setting = "value"\n')
+            temp_config_path = f.name
+        
+        try:
+            # This should not raise an error, just do nothing
+            configure_from_confection(temp_config_path)
+            
+            # Configuration should remain at default values
+            config = get_config()
+            assert config.enabled is True
+            
+        finally:
+            os.unlink(temp_config_path)
 
 
 class TestChaining:
