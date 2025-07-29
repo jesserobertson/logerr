@@ -630,7 +630,7 @@ def from_predicate(value: T, predicate: Callable[[T], bool], error: E) -> Result
     
     This function tests a value against a predicate function and returns
     Ok(value) if the predicate passes, or Err(error) if it fails or raises
-    an exception.
+    an exception. When an exception occurs, it's wrapped as the error value.
     
     Args:
         value: The value to test.
@@ -638,7 +638,8 @@ def from_predicate(value: T, predicate: Callable[[T], bool], error: E) -> Result
         error: The error value to return if predicate fails.
         
     Returns:
-        Ok(value) if predicate(value) is True, Err(error) otherwise.
+        Ok(value) if predicate(value) is True, Err(error) if predicate is False,
+        or Err(exception) if predicate raises an exception.
         
     Examples:
         Predicate passes:
@@ -662,7 +663,8 @@ def from_predicate(value: T, predicate: Callable[[T], bool], error: E) -> Result
         else:
             return Err.from_value(error)
     except Exception as e:
-        return Err.from_exception(e)
+        # Type: ignore because exception handling changes the error type, but this is expected behavior
+        return Err.from_exception(e)  # type: ignore[return-value]
 
 
 def predicate_validator(predicate: Callable[[T], bool], error: E) -> Callable[[T], Result[T, E]]:
@@ -692,7 +694,8 @@ def predicate_validator(predicate: Callable[[T], bool], error: E) -> Callable[[T
         True
     """
     def validator_func(value: T) -> Result[T, E]:
-        return from_predicate(value, predicate, error)
+        # Type: ignore because from_predicate might return Exception in error case
+        return from_predicate(value, predicate, error)  # type: ignore[return-value]
     return validator_func
 
 

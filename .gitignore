@@ -11,3 +11,9 @@ __pycache__/
 
 # Documentation build
 site/
+
+# Ignore dotfiles
+.coverage 
+.envrc 
+.hypothesis
+.claude
