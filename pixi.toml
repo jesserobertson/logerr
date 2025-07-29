@@ -1,5 +1,5 @@
 [workspace]
-authors = ["Jess Robertson <jess.robertson@niwa.co.nz>"]
+authors = ["Jesse Robertson <jess.robertson@niwa.co.nz>"]
 channels = ["conda-forge"]
 name = "logerr"
 platforms = ["osx-arm64"]
@@ -16,12 +16,15 @@ pytest = "*"
 hypothesis = "*"
 mypy = "*"
 pytest-cov = ">=6.2.1,<7"
+ruff = "*"
 
 [feature.dev.tasks]
-test = "pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term --cov-report=html"
+test = "pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term --cov-report=html --cov-report=xml"
 test-all = "pytest tests/ --doctest-modules logerr"
 typecheck = "mypy logerr"
+quality = "ruff check logerr tests && ruff format --check logerr tests"
 clean = "rm -rf htmlcov/ site/ .coverage .pytest_cache/ **/__pycache__/ **/*.pyc .mypy_cache/ .hypothesis/"
+check-all = { depends-on = ["test", "typecheck", "quality"] }
 
 [feature.docs.dependencies]
 mkdocs = "*"
@@ -34,5 +37,5 @@ docs-serve = "mkdocs serve"
 docs-build = "mkdocs build"
 
 [environments]
-dev = ["dev", "docs"]
+dev = ["dev"] 
 docs = ["docs"]

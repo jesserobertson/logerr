@@ -16,7 +16,7 @@ Both types support method chaining and automatically log error/absence cases for
 Currently, install from source:
 
 ```bash
-git clone https://github.com/jess-robertson/logerr
+git clone https://github.com/jesserobertson/logerr
 cd logerr
 pixi install  # If you have pixi
 # or

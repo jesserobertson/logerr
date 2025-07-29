@@ -2,9 +2,10 @@
 
 **Rust-like Option and Result types for Python with automatic logging**
 
-[![Tests](https://img.shields.io/badge/tests-79%20passed-green)](https://github.com/jess-robertson/logerr)
-[![Type Checked](https://img.shields.io/badge/mypy-passing-blue)](https://github.com/jess-robertson/logerr)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue)](https://github.com/jess-robertson/logerr)
+[![Tests](https://img.shields.io/badge/tests-162%20passed-green)](https://github.com/jesserobertson/logerr)
+[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/jesserobertson/logerr)
+[![Type Checked](https://img.shields.io/badge/mypy-passing-blue)](https://github.com/jesserobertson/logerr)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue)](https://github.com/jesserobertson/logerr)
 
 `logerr` brings the power of Rust's `Option<T>` and `Result<T, E>` types to Python, with automatic logging of error cases using [loguru](https://github.com/Delgan/loguru). Write clean, functional error-handling code while maintaining excellent observability.
 
@@ -24,18 +25,29 @@ import logerr
 from logerr import Ok, Err, Some, Nothing
 
 # Handle operations that might fail
-result = logerr.result.from_callable(lambda: risky_database_call())
+def risky_operation():
+    raise ConnectionError("Database connection failed")
+
+result = logerr.result.from_callable(risky_operation)
 if result.is_ok():
-    data = result.unwrap()
-    print(f"Got data: {data}")
+    print(f"Success: {result.unwrap()}")
 else:
-    print("Operation failed - error details logged automatically!")
+    print(f"Failed: {result.unwrap_or('unknown error')}")
+    # 🪵 Automatic logging output:
+    # 2024-01-15 14:23:12.345 | ERROR | logerr.result:425 - Result error in risky_operation:2 - Database connection failed
+```
 
-# Work with nullable values
-config_value = logerr.option.from_nullable(os.environ.get("DATABASE_URL"))
-db_url = config_value.unwrap_or("sqlite:///default.db")
+**✨ The key difference:** Errors are **automatically logged** with full context - no manual logging required!
 
-# Chain operations elegantly
+```python
+# Work with optional values
+user_data = {"name": "Alice"}
+email = logerr.option.from_nullable(user_data.get("email"))
+contact = email.unwrap_or("no-email@example.com")
+# 🪵 Automatic logging output:
+# 2024-01-15 14:23:12.456 | WARNING | logerr.option:421 - Option Nothing in from_nullable:1 - Value was None
+
+# Chain operations elegantly with automatic error handling
 processed = (Ok("hello world")
     .map(str.upper)           # Ok("HELLO WORLD")  
     .map(lambda s: s.split()) # Ok(["HELLO", "WORLD"])
@@ -48,20 +60,48 @@ processed = (Ok("hello world")
 Currently available from source:
 
 ```bash
-git clone https://github.com/jess-robertson/logerr
+git clone https://github.com/jesserobertson/logerr
 cd logerr
 pip install -e .
 ```
 
 ## 🔍 Why logerr?
 
-Traditional Python error handling often forces difficult tradeoffs:
+### See the Difference
+
+**Traditional approach** (manual logging required):
+```python
+def load_config():
+    try:
+        with open("config.json") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")  # Manual logging
+        return None
+
+config = load_config()
+if config is None:
+    print("Using defaults")
+```
+
+**With logerr** (automatic logging):
+```python
+def load_config():
+    return logerr.result.from_callable(lambda: json.load(open("config.json")))
+
+config = load_config().unwrap_or({})
+# 🪵 Automatically logs:
+# 2024-01-15 14:23:12.789 | ERROR | logerr.result:425 - Result error in <lambda>:1 - [Errno 2] No such file or directory: 'config.json'
+```
+
+### Traditional Tradeoffs vs logerr
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| **Exceptions** | Clear error info | Can be hard to follow, requires try/catch |
+| **Exceptions** | Clear error info | Hard to follow, requires try/catch |
 | **None returns** | Simple | Loses error context, silent failures |
 | **Tuple returns** | Explicit | Verbose, easy to misuse |
+| **🦀 logerr** | **Explicit + Automatic logging + Composable + Type safe** | **Learning curve** |
 
 **logerr gives you the best of all worlds:**
 
@@ -72,11 +112,11 @@ Traditional Python error handling often forces difficult tradeoffs:
 
 ## 📖 Documentation
 
-- **[Getting Started](https://jess-robertson.github.io/logerr/guide/getting-started/)** - Learn the basics
-- **[Result Types](https://jess-robertson.github.io/logerr/guide/result-types/)** - Handle operations that might fail
-- **[Option Types](https://jess-robertson.github.io/logerr/guide/option-types/)** - Work with nullable values  
-- **[Configuration](https://jess-robertson.github.io/logerr/guide/configuration/)** - Customize logging behavior
-- **[API Reference](https://jess-robertson.github.io/logerr/api/result/)** - Complete API documentation
+- **[Getting Started](https://jesserobertson.github.io/logerr/guide/getting-started/)** - Learn the basics
+- **[Result Types](https://jesserobertson.github.io/logerr/guide/result-types/)** - Handle operations that might fail
+- **[Option Types](https://jesserobertson.github.io/logerr/guide/option-types/)** - Work with nullable values  
+- **[Configuration](https://jesserobertson.github.io/logerr/guide/configuration/)** - Customize logging behavior
+- **[API Reference](https://jesserobertson.github.io/logerr/api/result/)** - Complete API documentation
 
 ## 💡 Examples
 
@@ -211,7 +251,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Inspired by Rust's `Option` and `Result` types
-- Built on the excellent [loguru](https://github.com/Delgan/loguru) logging library
-- Configuration powered by [confection](https://github.com/explosion/confection)
-- Similar to [option](https://github.com/MaT1g3R/option) but with automatic logging
+This project builds upon excellent prior work:
+
+- **[MaT1g3R/option](https://github.com/MaT1g3R/option)** - The original Python implementation of Rust-like Option and Result types that inspired this project. `logerr` extends their elegant API design with automatic logging capabilities.
+- **[Rust's std::option and std::result](https://doc.rust-lang.org/)** - The foundational design patterns and method names
+- **[loguru](https://github.com/Delgan/loguru)** - The excellent logging library that powers our automatic error logging
+- **[confection](https://github.com/explosion/confection)** - Flexible configuration management system

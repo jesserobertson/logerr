@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**logerr** is a Python library that provides Rust-like Option and Result types with automatic logging integration. It combines functional error handling patterns with observability through loguru, inspired by https://github.com/MaT1g3R/option but with enhanced logging capabilities and configuration management via confection.
+**logerr** is a Python library that provides Rust-like Option and Result types with automatic logging integration. It builds upon the elegant API design from [MaT1g3R/option](https://github.com/MaT1g3R/option), extending it with enhanced logging capabilities through loguru and configuration management via confection.
 
 Key features:
 - Rust-like Option<T> and Result<T, E> types with full type safety

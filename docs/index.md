@@ -20,15 +20,27 @@ import logerr
 from logerr import Ok, Err, Some, Nothing
 
 # Result types for operations that might fail
-result = logerr.result.from_callable(lambda: risky_operation())
+def risky_operation():
+    raise ConnectionError("Database connection failed")
+
+result = logerr.result.from_callable(risky_operation)
 if result.is_ok():
     print(f"Success: {result.unwrap()}")
 else:
     print("Operation failed - check logs for details")
+    # 🪵 Automatic logging output:
+    # 2024-01-15 14:23:12.345 | ERROR | logerr.result:425 - Result error in risky_operation:2 - Database connection failed
+```
 
+**✨ The key difference:** Errors are **automatically logged** with full context!
+
+```python
 # Option types for nullable values  
-config_value = logerr.option.from_nullable(config.get("database_url"))
-db_url = config_value.unwrap_or("sqlite:///default.db")
+config = {"name": "MyApp"}
+db_url = logerr.option.from_nullable(config.get("database_url"))
+connection_string = db_url.unwrap_or("sqlite:///default.db")
+# 🪵 Automatic logging output:
+# 2024-01-15 14:23:12.456 | WARNING | logerr.option:421 - Option Nothing in from_nullable:1 - Value was None
 
 # Method chaining with automatic error handling
 processed = (Ok("hello world")
@@ -62,7 +74,7 @@ pip install logerr  # (when published)
 For now, install from source:
 
 ```bash
-git clone https://github.com/jess-robertson/logerr
+git clone https://github.com/jesserobertson/logerr
 cd logerr
 pip install -e .
 ```
@@ -104,3 +116,11 @@ else:
 ```
 
 This code is clean, composable, and provides excellent error visibility through automatic logging.
+
+## Acknowledgments
+
+This project builds upon excellent prior work:
+
+- **[MaT1g3R/option](https://github.com/MaT1g3R/option)** - The original Python implementation of Rust-like Option and Result types that inspired this project. `logerr` extends their elegant API design with automatic logging capabilities.
+- **[Rust's std::option and std::result](https://doc.rust-lang.org/)** - The foundational design patterns and method names
+- **[loguru](https://github.com/Delgan/loguru)** - The excellent logging library that powers our automatic error logging

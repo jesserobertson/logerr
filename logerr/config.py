@@ -4,25 +4,24 @@ Configuration system for logerr using confection.
 Provides configurable logging behavior for Result/Option error cases.
 """
 
-from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 from confection import Config
-from loguru import logger
 
 
 @dataclass
 class LoggingConfig:
     """Configuration for error logging behavior."""
-    
+
     # Global logging settings
     enabled: bool = True
     level: str = "ERROR"
     format: Optional[str] = None
-    
+
     # Per-library settings
     libraries: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    
+
     # Context capture settings
     capture_function_name: bool = True
     capture_filename: bool = True
@@ -51,7 +50,7 @@ def reset_config() -> None:
 def configure(config_dict: Dict[str, Any]) -> None:
     """
     Configure logerr from a dictionary.
-    
+
     Args:
         config_dict: Configuration dictionary that can include:
             - enabled: bool - Enable/disable logging
@@ -61,41 +60,43 @@ def configure(config_dict: Dict[str, Any]) -> None:
             - capture_*: bool - Context capture settings
     """
     global _config
-    
+
     # Create new config from current + updates
     current = get_config()
-    
+
     _config = LoggingConfig(
-        enabled=config_dict.get('enabled', current.enabled),
-        level=config_dict.get('level', current.level),
-        format=config_dict.get('format', current.format),
-        libraries={**current.libraries, **config_dict.get('libraries', {})},
-        capture_function_name=config_dict.get('capture_function_name', current.capture_function_name),
-        capture_filename=config_dict.get('capture_filename', current.capture_filename),
-        capture_lineno=config_dict.get('capture_lineno', current.capture_lineno),
-        capture_locals=config_dict.get('capture_locals', current.capture_locals),
+        enabled=config_dict.get("enabled", current.enabled),
+        level=config_dict.get("level", current.level),
+        format=config_dict.get("format", current.format),
+        libraries={**current.libraries, **config_dict.get("libraries", {})},
+        capture_function_name=config_dict.get(
+            "capture_function_name", current.capture_function_name
+        ),
+        capture_filename=config_dict.get("capture_filename", current.capture_filename),
+        capture_lineno=config_dict.get("capture_lineno", current.capture_lineno),
+        capture_locals=config_dict.get("capture_locals", current.capture_locals),
     )
 
 
 def configure_from_confection(config_path: str) -> None:
     """
     Configure logerr from a confection config file.
-    
+
     Args:
         config_path: Path to the configuration file
     """
     config = Config().from_disk(config_path)
-    if 'logerr' in config:
-        configure(config['logerr'])
+    if "logerr" in config:
+        configure(config["logerr"])
 
 
 def get_library_config(library_name: str) -> Dict[str, Any]:
     """
     Get configuration for a specific library.
-    
+
     Args:
         library_name: Name of the library
-        
+
     Returns:
         Configuration dictionary for the library
     """
@@ -106,34 +107,34 @@ def get_library_config(library_name: str) -> Dict[str, Any]:
 def should_log_for_library(library_name: str) -> bool:
     """
     Check if logging is enabled for a specific library.
-    
+
     Args:
         library_name: Name of the library
-        
+
     Returns:
         True if logging should occur for this library
     """
     config = get_config()
     if not config.enabled:
         return False
-    
+
     lib_config = get_library_config(library_name)
-    return lib_config.get('enabled', True)
+    return lib_config.get("enabled", True)
 
 
 def get_log_level_for_library(library_name: str) -> str:
     """
     Get the log level for a specific library.
-    
+
     Args:
         library_name: Name of the library
-        
+
     Returns:
         Log level string (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
     config = get_config()
     lib_config = get_library_config(library_name)
-    return lib_config.get('level', config.level)
+    return lib_config.get("level", config.level)
 
 
 # TODO: Add confection registry integration later
