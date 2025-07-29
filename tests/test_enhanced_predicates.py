@@ -189,7 +189,10 @@ class TestApiConsistency:
 
     def test_option_and_result_predicate_consistency(self):
         """Test that Option and Result predicate functions behave consistently."""
-        predicate = lambda x: x > 0
+
+        def predicate(x):
+            return x > 0
+
         value = 42
         negative_value = -5
 

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Generic, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from loguru import logger
 
@@ -19,7 +20,7 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
-class Option(Generic[T], ABC):
+class Option[T](ABC):
     """A type that represents an optional value: either Some(T) or Nothing.
 
     Option<T> is similar to Rust's Option type, providing a way to handle
@@ -296,7 +297,8 @@ class Some(Option[T]):
     def __lt__(self, other: object) -> bool:
         if isinstance(other, Some):
             try:
-                return self._value < other._value
+                result = self._value < other._value
+                return bool(result)
             except TypeError:
                 return NotImplemented
         elif isinstance(other, Nothing):
@@ -309,7 +311,8 @@ class Some(Option[T]):
     def __gt__(self, other: object) -> bool:
         if isinstance(other, Some):
             try:
-                return self._value > other._value
+                result = self._value > other._value
+                return bool(result)
             except TypeError:
                 return NotImplemented
         elif isinstance(other, Nothing):
@@ -513,7 +516,7 @@ class Nothing(Option[T]):
             return f()
         except Exception as e:
             # If the unwrap_or_else function fails, we need to raise an error
-            raise ValueError(f"unwrap_or_else function failed: {e}")
+            raise ValueError(f"unwrap_or_else function failed: {e}") from e
 
     def map(self, f: Callable[[T], U]) -> Option[U]:
         return Nothing(self._reason, _skip_logging=True)
@@ -552,7 +555,7 @@ class Nothing(Option[T]):
         return self.__eq__(other) or self.__lt__(other)
 
     def __gt__(self, other: object) -> bool:
-        if isinstance(other, (Some, Nothing)):
+        if isinstance(other, Some | Nothing):
             return False  # Nothing is never greater than anything
         return NotImplemented
 
@@ -563,7 +566,7 @@ class Nothing(Option[T]):
 
 
 # Factory functions for creating Options
-def from_nullable(value: Optional[T]) -> Option[T]:
+def from_nullable[T](value: T | None) -> Option[T]:
     """Convert a nullable value to an Option.
 
     This function converts a potentially None value into an Option,
@@ -598,7 +601,7 @@ def from_nullable(value: Optional[T]) -> Option[T]:
         return Nothing.from_none()
 
 
-def from_callable(f: Callable[[], Optional[T]]) -> Option[T]:
+def from_callable[T](f: Callable[[], T | None]) -> Option[T]:
     """Execute a callable and return Some(result) or Nothing.
 
     This function safely executes a callable that might return None or raise
@@ -645,7 +648,7 @@ def from_callable(f: Callable[[], Optional[T]]) -> Option[T]:
 
 
 def from_predicate(
-    value: T, predicate: Callable[[T], bool], *, error_message: Optional[str] = None
+    value: T, predicate: Callable[[T], bool], *, error_message: str | None = None
 ) -> Option[T]:
     """Create an Option based on whether a value satisfies a predicate.
 
@@ -698,8 +701,8 @@ def from_predicate(
         return Nothing.from_exception(e)
 
 
-def predicate_filter(
-    predicate: Callable[[T], bool], *, error_message: Optional[str] = None
+def predicate_filter[T](
+    predicate: Callable[[T], bool], *, error_message: str | None = None
 ) -> Callable[[T], Option[T]]:
     """Create a reusable predicate filter function.
 

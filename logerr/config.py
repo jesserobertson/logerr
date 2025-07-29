@@ -5,7 +5,7 @@ Provides configurable logging behavior for Result/Option error cases.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 from confection import Config
 
@@ -17,10 +17,10 @@ class LoggingConfig:
     # Global logging settings
     enabled: bool = True
     level: str = "ERROR"
-    format: Optional[str] = None
+    format: str | None = None
 
     # Per-library settings
-    libraries: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    libraries: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Context capture settings
     capture_function_name: bool = True
@@ -30,7 +30,7 @@ class LoggingConfig:
 
 
 # Global configuration instance
-_config: Optional[LoggingConfig] = None
+_config: LoggingConfig | None = None
 
 
 def get_config() -> LoggingConfig:
@@ -47,7 +47,7 @@ def reset_config() -> None:
     _config = LoggingConfig()
 
 
-def configure(config_dict: Dict[str, Any]) -> None:
+def configure(config_dict: dict[str, Any]) -> None:
     """
     Configure logerr from a dictionary.
 
@@ -90,7 +90,7 @@ def configure_from_confection(config_path: str) -> None:
         configure(config["logerr"])
 
 
-def get_library_config(library_name: str) -> Dict[str, Any]:
+def get_library_config(library_name: str) -> dict[str, Any]:
     """
     Get configuration for a specific library.
 
@@ -119,7 +119,8 @@ def should_log_for_library(library_name: str) -> bool:
         return False
 
     lib_config = get_library_config(library_name)
-    return lib_config.get("enabled", True)
+    enabled = lib_config.get("enabled", True)
+    return bool(enabled)
 
 
 def get_log_level_for_library(library_name: str) -> str:
@@ -134,7 +135,8 @@ def get_log_level_for_library(library_name: str) -> str:
     """
     config = get_config()
     lib_config = get_library_config(library_name)
-    return lib_config.get("level", config.level)
+    level = lib_config.get("level", config.level)
+    return str(level)
 
 
 # TODO: Add confection registry integration later

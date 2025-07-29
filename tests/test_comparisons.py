@@ -86,7 +86,7 @@ class TestOptionComparisons:
 
         # Ordering should raise TypeError for non-comparable types
         with pytest.raises(TypeError):
-            some1 < some2
+            assert some1 < some2
 
 
 class TestResultComparisons:
@@ -166,7 +166,7 @@ class TestResultComparisons:
 
         # Ordering should raise TypeError for non-comparable types
         with pytest.raises(TypeError):
-            ok1 < ok2
+            assert ok1 < ok2
 
 
 class TestMixedComparisons:

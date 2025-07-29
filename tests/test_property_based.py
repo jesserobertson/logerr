@@ -90,8 +90,11 @@ class TestOptionProperties:
         option = Some(value)
 
         # map(f) . map(g) == map(g . f)
-        f = lambda x: x + offset
-        g = lambda x: x * 2
+        def f(x):
+            return x + offset
+
+        def g(x):
+            return x * 2
 
         result1 = option.map(f).map(g)
         result2 = option.map(lambda x: g(f(x)))
@@ -132,13 +135,17 @@ class TestOptionProperties:
         option = Some(value)
 
         # and_then with function that returns Some
-        f = lambda x: Some(x * multiplier)
+        def f(x):
+            return Some(x * multiplier)
+
         result = option.and_then(f)
         assert result.is_some()
         assert result.unwrap() == value * multiplier
 
         # and_then with function that returns Nothing
-        g = lambda x: Nothing.empty()
+        def g(x):
+            return Nothing.empty()
+
         result = option.and_then(g)
         assert result.is_nothing()
 
@@ -146,7 +153,6 @@ class TestOptionProperties:
     def test_string_operations(self, text1, text2):
         """Test Option operations with strings."""
         option1 = Some(text1)
-        option2 = Some(text2)
 
         # Map string operations
         upper_result = option1.map(str.upper)
@@ -210,7 +216,8 @@ class TestResultProperties:
         ok_result = Ok(value)
         err_result = Err("error")
 
-        f = lambda x: x * multiplier
+        def f(x):
+            return x * multiplier
 
         # Ok values get mapped
         mapped_ok = ok_result.map(f)
@@ -229,13 +236,17 @@ class TestResultProperties:
         err_result = Err(error_msg)
 
         # and_then with Ok input and Ok-returning function
-        f = lambda x: Ok(x * 2)
+        def f(x):
+            return Ok(x * 2)
+
         chained_ok = ok_result.and_then(f)
         assert chained_ok.is_ok()
         assert chained_ok.unwrap() == value * 2
 
         # and_then with Ok input and Err-returning function
-        g = lambda x: Err("new error")
+        def g(x):
+            return Err("new error")
+
         chained_err = ok_result.and_then(g)
         assert chained_err.is_err()
         assert chained_err.unwrap_err() == "new error"
@@ -263,7 +274,8 @@ class TestResultProperties:
         ok_result = Ok(value)
         err_result = Err("original error")
 
-        error_transformer = lambda e: f"transformed: {e}"
+        def error_transformer(e):
+            return f"transformed: {e}"
 
         # map_err on Ok should preserve Ok
         mapped_ok = ok_result.map_err(error_transformer)
@@ -401,10 +413,10 @@ class TestErrorHandlingProperties:
         err = Err(error_context)
 
         # These should raise exceptions
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             nothing.unwrap()
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             err.unwrap()
 
     @given(st.integers())

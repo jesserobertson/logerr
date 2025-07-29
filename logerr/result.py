@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Generic, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from loguru import logger
 
@@ -20,7 +21,7 @@ E = TypeVar("E")
 U = TypeVar("U")
 
 
-class Result(Generic[T, E], ABC):
+class Result[T, E](ABC):
     """A type that represents either success (Ok) or failure (Err).
 
     Result<T, E> is similar to Rust's Result type, providing a way to handle
@@ -304,7 +305,8 @@ class Ok(Result[T, E]):
     def __lt__(self, other: object) -> bool:
         if isinstance(other, Ok):
             try:
-                return self._value < other._value
+                result = self._value < other._value
+                return bool(result)
             except TypeError:
                 return NotImplemented
         elif isinstance(other, Err):
@@ -317,7 +319,8 @@ class Ok(Result[T, E]):
     def __gt__(self, other: object) -> bool:
         if isinstance(other, Ok):
             try:
-                return self._value > other._value
+                result = self._value > other._value
+                return bool(result)
             except TypeError:
                 return NotImplemented
         elif isinstance(other, Err):
@@ -496,7 +499,7 @@ class Err(Result[T, E]):
             return f(self._error)
         except Exception as e:
             # If the unwrap_or_else function fails, we need to raise an error
-            raise RuntimeError(f"unwrap_or_else function failed: {e}")
+            raise RuntimeError(f"unwrap_or_else function failed: {e}") from e
 
     def map(self, f: Callable[[T], U]) -> Result[U, E]:
         return Err(self._error, _skip_logging=True)
@@ -528,7 +531,8 @@ class Err(Result[T, E]):
     def __lt__(self, other: object) -> bool:
         if isinstance(other, Err):
             try:
-                return self._error < other._error
+                result = self._error < other._error
+                return bool(result)
             except TypeError:
                 return NotImplemented
         elif isinstance(other, Ok):
@@ -541,7 +545,8 @@ class Err(Result[T, E]):
     def __gt__(self, other: object) -> bool:
         if isinstance(other, Err):
             try:
-                return self._error > other._error
+                result = self._error > other._error
+                return bool(result)
             except TypeError:
                 return NotImplemented
         elif isinstance(other, Ok):
@@ -553,7 +558,7 @@ class Err(Result[T, E]):
 
 
 # Factory functions for creating Results
-def from_callable(f: Callable[[], T]) -> Result[T, Exception]:
+def from_callable[T](f: Callable[[], T]) -> Result[T, Exception]:
     """Execute a callable and return Ok(result) or Err(exception).
 
     This function safely executes a callable that might raise an exception,
@@ -590,7 +595,7 @@ def from_callable(f: Callable[[], T]) -> Result[T, Exception]:
         return Err.from_exception(e)
 
 
-def from_optional(value: Optional[T], error: E) -> Result[T, E]:
+def from_optional[T, E](value: T | None, error: E) -> Result[T, E]:
     """Convert an Optional value to a Result.
 
     This function converts a potentially None value into a Result,
@@ -668,7 +673,7 @@ def from_predicate(value: T, predicate: Callable[[T], bool], error: E) -> Result
         return Err.from_exception(e)  # type: ignore[return-value]
 
 
-def predicate_validator(
+def predicate_validator[T, E](
     predicate: Callable[[T], bool], error: E
 ) -> Callable[[T], Result[T, E]]:
     """Create a reusable predicate validator function.

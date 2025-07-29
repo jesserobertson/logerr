@@ -75,7 +75,6 @@ class TestCleanAPI:
         assert callable(logerr.reset_config)
 
         # Test basic configuration
-        original_config = logerr.get_config()
         logerr.configure({"level": "DEBUG"})
         new_config = logerr.get_config()
         assert new_config.level == "DEBUG"

@@ -143,7 +143,7 @@ class TestNothing:
 
     def test_nothing_empty_no_logging(self):
         with patch.object(logger, "log") as mock_log:
-            option = Nothing.empty()
+            Nothing.empty()
             mock_log.assert_not_called()
 
 
