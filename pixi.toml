@@ -21,6 +21,7 @@ pytest-cov = ">=6.2.1,<7"
 test = "pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term --cov-report=html"
 test-all = "pytest tests/ --doctest-modules logerr"
 typecheck = "mypy logerr"
+clean = "rm -rf htmlcov/ site/ .coverage .pytest_cache/ **/__pycache__/ **/*.pyc .mypy_cache/ .hypothesis/"
 
 [feature.docs.dependencies]
 mkdocs = "*"
