@@ -23,17 +23,19 @@
 ```python
 from logerr import Result, Ok, Err, Some, Nothing
 
-# Handle operations that might fail
+# Handle operations that might fail - functional pipeline style
 def risky_operation():
     raise ConnectionError("Database connection failed")
 
-result_value = Result.from_callable(risky_operation)
-if result_value.is_ok():
-    print(f"Success: {result_value.unwrap()}")
-else:
-    print(f"Failed: {result_value.unwrap_or('unknown error')}")
-    # 🪵 Automatic logging output:
-    # 2024-01-15 14:23:12.345 | ERROR | logerr.result:425 - Result error in risky_operation:2 - Database connection failed
+# Use functional pipeline with automatic error logging
+message = (
+    Result.from_callable(risky_operation)
+    .map(lambda value: f"Success: {value}")
+    .unwrap_or("Failed: check logs for details")
+)
+print(message)
+# 🪵 Automatic logging output:
+# 2024-01-15 14:23:12.345 | ERROR | logerr.result:425 - Result error in risky_operation:2 - Database connection failed
 ```
 
 **✨ The key difference:** Errors are **automatically logged** with full context - no manual logging required!
@@ -41,19 +43,26 @@ else:
 ```python
 from logerr import Option
 
-# Work with optional values
+# Work with optional values using functional pipeline
 user_data = {"name": "Alice"}
-email = Option.from_nullable(user_data.get("email"))
-contact = email.unwrap_or("no-email@example.com")
+
+# Functional pipeline for nullable values
+contact = (
+    Option.from_nullable(user_data.get("email"))
+    .filter(lambda email: "@" in email)  # Validate email format
+    .unwrap_or("no-email@example.com")
+)
 # 🪵 Automatic logging output:
 # 2024-01-15 14:23:12.456 | WARNING | logerr.option:421 - Option Nothing in from_nullable:1 - Value was None
 
 # Chain operations elegantly with automatic error handling
-processed = (Ok("hello world")
+processed = (
+    Ok("hello world")
     .map(str.upper)           # Ok("HELLO WORLD")  
     .map(lambda s: s.split()) # Ok(["HELLO", "WORLD"])
     .map(len)                 # Ok(2)
-    .unwrap_or(0))            # 2
+    .unwrap_or(0)            # 2
+)
 ```
 
 ## 📦 Installation
@@ -85,14 +94,21 @@ if config is None:
     print("Using defaults")
 ```
 
-**With logerr** (automatic logging):
+**With logerr** (automatic logging + functional style):
 ```python
 from logerr import Result
+from logerr.utils import execute
+import json
 
 def load_config():
-    return Result.from_callable(lambda: json.load(open("config.json")))
+    return execute(lambda: json.load(open("config.json")))
 
-config = load_config().unwrap_or({})
+# Functional pipeline with error recovery
+config = (
+    load_config()
+    .or_else(lambda _: Ok({}))  # Fallback to empty config
+    .unwrap()
+)
 # 🪵 Automatically logs:
 # 2024-01-15 14:23:12.789 | ERROR | logerr.result:425 - Result error in <lambda>:1 - [Errno 2] No such file or directory: 'config.json'
 ```
@@ -127,72 +143,109 @@ config = load_config().unwrap_or({})
 
 ```python
 from logerr import Result, Err
+from logerr.utils import execute, validate
 from typing import Any
 
 def connect_to_database(url: str) -> Result[Any, str]:
-    return Result.from_callable(lambda: database.connect(url))
+    """Connect with automatic error handling using execute utility"""
+    return execute(lambda: database.connect(url))
 
-def with_retry(error: str) -> Result[Any, str]:
-    if "timeout" in error.lower():
-        return connect_to_database("backup-server.db")
-    return Err(f"Connection failed: {error}")
+def retry_on_timeout(error: str) -> Result[Any, str]:
+    """Functional retry logic using validation utility"""
+    return (
+        validate(error, lambda e: "timeout" in e.lower(), None)
+        .and_then(lambda _: connect_to_database("backup-server.db"))
+        .map_err(lambda _: f"Connection failed: {error}")
+    )
 
-# Automatic retry with logging
-connection = (connect_to_database("primary-server.db")
-    .or_else(with_retry)
-    .unwrap_or(None))
+# Functional pipeline with automatic retry and logging  
+result = (
+    connect_to_database("primary-server.db")
+    .or_else(retry_on_timeout)
+    .map(lambda conn: "Connected successfully!")
+    .unwrap_or("All connection attempts failed - check logs")
+)
 
-if connection:
-    print("Connected successfully!")
-else:
-    print("All connection attempts failed - check logs")
+print(result)
 ```
 
 ### Configuration Loading Pipeline
 
 ```python
-from logerr import Result, Ok, Err
+from logerr import Result, Ok, Err  
+from logerr.utils import execute, validate, resolve
 import json
 from pathlib import Path
 
 def load_config(path: str) -> Result[dict, str]:
-    """Load and validate configuration file."""
-    return (Result.from_callable(lambda: Path(path).read_text())
-        .and_then(lambda text: Result.from_callable(lambda: json.loads(text)))
+    """Load and validate configuration using functional utilities."""
+    return (
+        execute(lambda: Path(path).read_text())
+        .and_then(lambda text: execute(lambda: json.loads(text)))
         .and_then(validate_config)
-        .map_err(lambda e: f"Config error in {path}: {e}"))
+        .map_err(lambda e: f"Config error in {path}: {e}")
+    )
 
 def validate_config(config: dict) -> Result[dict, str]:
+    """Validate required configuration keys using validation utility."""
     required_keys = ["database_url", "api_key"]
-    missing = [key for key in required_keys if key not in config]
-    if missing:
-        return Err(f"Missing required keys: {missing}")
-    return Ok(config)
+    
+    return (
+        validate(config, lambda cfg: all(key in cfg for key in required_keys), None)
+        .map_err(lambda _: f"Missing required keys: {[k for k in required_keys if k not in config]}")
+        .map(lambda _: config)
+    )
 
-# Load with automatic error logging
-config = load_config("app.json").unwrap_or({
-    "database_url": "sqlite:///default.db",
+# Functional pipeline with fallback configuration
+default_config = {
+    "database_url": "sqlite:///default.db", 
     "api_key": "demo-key"
-})
+}
+
+config = (
+    load_config("app.json")
+    .or_else(lambda _: Ok(default_config))
+    .map(lambda cfg: resolve(cfg.get("database_url"), default=default_config["database_url"]))
+    .unwrap()
+)
 ```
 
 ### Safe Data Processing
 
 ```python
 from logerr import Option
+from logerr.utils import nullable, validate, attribute
 
 def process_user_data(data: dict) -> Option[str]:
-    """Extract and format user display name."""
-    return (Option.from_nullable(data.get("user"))
-        .and_then(lambda user: Option.from_nullable(user.get("profile")))
-        .and_then(lambda profile: Option.from_nullable(profile.get("name")))
-        .filter(lambda name: len(name.strip()) > 0)
-        .map(str.title))
+    """Extract and format user display name using functional utilities."""
+    return (
+        nullable(data.get("user"))
+        .and_then(lambda user: nullable(user.get("profile")))  
+        .and_then(lambda profile: nullable(profile.get("name")))
+        .and_then(lambda name: validate(name, lambda n: len(n.strip()) > 0, None))
+        .map(str.title)
+        .map(lambda name: f"👋 {name}")  # Add greeting emoji
+    )
 
-# Usage
-user_data = {"user": {"profile": {"name": "alice smith"}}}
-display_name = process_user_data(user_data).unwrap_or("Anonymous User")
-print(f"Hello, {display_name}!")  # Hello, Alice Smith!
+def get_user_role(data: dict) -> Option[str]:
+    """Get user role with fallback using attribute utility."""
+    return (
+        nullable(data.get("user"))  
+        .map(lambda user: attribute(user, "role", "member"))  # Default to "member"
+        .filter(lambda role: role in ["admin", "member", "guest"])
+    )
+
+# Usage with functional pipeline
+user_data = {"user": {"profile": {"name": "alice smith"}, "role": "admin"}}
+
+greeting = (
+    process_user_data(user_data)
+    .zip(get_user_role(user_data))  # Combine name and role
+    .map(lambda pair: f"{pair[0]} (Role: {pair[1]})")
+    .unwrap_or("👋 Anonymous User")
+)
+
+print(greeting)  # 👋 Alice Smith (Role: admin)
 ```
 
 ## ⚙️ Configuration
