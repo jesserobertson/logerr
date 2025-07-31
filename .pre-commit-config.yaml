@@ -1,0 +1,38 @@
+# Pre-commit hooks to mirror CI checks
+repos:
+  - repo: local
+    hooks:
+      # Run all quality checks (same as CI)
+      - id: check-all
+        name: Run all checks (test, typecheck, quality)
+        entry: pixi run -e dev check-all
+        language: system
+        always_run: true
+        pass_filenames: false
+        
+      # Individual hooks for faster iteration
+      - id: ruff-check
+        name: Ruff linter
+        entry: pixi run -e dev ruff check
+        language: system
+        files: \.(py)$
+        
+      - id: ruff-format
+        name: Ruff formatter
+        entry: pixi run -e dev ruff format --check
+        language: system
+        files: \.(py)$
+        
+      - id: mypy
+        name: MyPy type checking
+        entry: pixi run -e dev mypy logerr
+        language: system
+        files: \.(py)$
+        pass_filenames: false
+        
+      - id: pytest
+        name: Run tests
+        entry: pixi run -e dev pytest tests/ --doctest-modules logerr
+        language: system
+        pass_filenames: false
+        stages: [manual]  # Only run manually to avoid slowing down commits

@@ -1,9 +1,8 @@
 """Tests for retry functionality."""
 
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
 from tenacity import stop_after_attempt, wait_fixed
 
 from logerr import Err, Ok, Result, retry
@@ -14,11 +13,12 @@ class TestRetryDecorators:
 
     def test_decorator_preserves_function_metadata(self):
         """Test that decorators preserve original function metadata."""
+
         @retry.on_err(log_attempts=False)
         def test_function() -> Result[str, str]:
             """This is a test function."""
             return Ok("test")
-        
+
         assert test_function.__name__ == "test_function"
         assert "This is a test function." in test_function.__doc__
 
@@ -26,14 +26,14 @@ class TestRetryDecorators:
         """Test that decorator works when applied directly without calling."""
         # This tests that the decorator function signature is correct
         call_count = 0
-        
+
         # Note: on_err requires parentheses because it takes parameters
         @retry.on_err(log_attempts=False)
         def decorated_function() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
             return Ok(42)
-        
+
         result = decorated_function()
         assert result.is_ok()
         assert result.unwrap() == 42
@@ -41,22 +41,23 @@ class TestRetryDecorators:
 
     def test_decorator_accepts_function_arguments(self):
         """Test that decorated functions can accept and pass through arguments."""
+
         @retry.on_err(stop=stop_after_attempt(2), log_attempts=False)
         def function_with_args(x: int, y: str = "default") -> Result[str, str]:
             if x < 0:
                 return Err("negative input")
             return Ok(f"{x}_{y}")
-        
+
         # Test with positional args
         result = function_with_args(5)
         assert result.is_ok()
         assert result.unwrap() == "5_default"
-        
+
         # Test with keyword args
         result = function_with_args(10, y="custom")
         assert result.is_ok()
         assert result.unwrap() == "10_custom"
-        
+
         # Test that retry works with args
         result = function_with_args(-1)
         assert result.is_err()
@@ -64,17 +65,17 @@ class TestRetryDecorators:
     def test_multiple_decorators_can_be_stacked(self):
         """Test that multiple retry decorators can be stacked."""
         call_count = 0
-        
+
         # Apply two decorators (though this is unusual, it should work)
         @retry.on_err(stop=stop_after_attempt(2), log_attempts=False)
-        @retry.on_err(stop=stop_after_attempt(2), log_attempts=False)  
+        @retry.on_err(stop=stop_after_attempt(2), log_attempts=False)
         def double_decorated() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 return Err("first failure")
             return Ok(42)
-        
+
         result = double_decorated()
         assert result.is_ok()
         assert result.unwrap() == 42
@@ -100,7 +101,9 @@ class TestRetryDecorators:
         """Test that on_err decorator retries on Err results."""
         call_count = 0
 
-        @retry.on_err(stop=stop_after_attempt(3), wait=wait_fixed(0.01), log_attempts=False)
+        @retry.on_err(
+            stop=stop_after_attempt(3), wait=wait_fixed(0.01), log_attempts=False
+        )
         def failing_operation() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
@@ -117,7 +120,9 @@ class TestRetryDecorators:
         """Test that on_err decorator eventually gives up."""
         call_count = 0
 
-        @retry.on_err(stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False)
+        @retry.on_err(
+            stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False
+        )
         def always_failing_operation() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
@@ -132,10 +137,10 @@ class TestRetryDecorators:
         call_count = 0
 
         @retry.on_err_type(
-            ValueError, 
-            stop=stop_after_attempt(3), 
-            wait=wait_fixed(0.01), 
-            log_attempts=False
+            ValueError,
+            stop=stop_after_attempt(3),
+            wait=wait_fixed(0.01),
+            log_attempts=False,
         )
         def selective_failing_operation() -> Result[int, Exception]:
             nonlocal call_count
@@ -159,7 +164,7 @@ class TestRetryDecorators:
             ValueError,
             stop=stop_after_attempt(3),
             wait=wait_fixed(0.01),
-            log_attempts=False
+            log_attempts=False,
         )
         def eventually_succeeds() -> Result[int, Exception]:
             nonlocal call_count
@@ -181,7 +186,7 @@ class TestRetryDecorators:
         @retry.on_err(
             stop=stop_after_attempt(3),
             wait=wait_fixed(0.1),  # 100ms delay
-            log_attempts=False
+            log_attempts=False,
         )
         def delayed_retry() -> Result[int, str]:
             nonlocal call_count
@@ -192,7 +197,7 @@ class TestRetryDecorators:
 
         result = delayed_retry()
         end_time = time.time()
-        
+
         assert result.is_ok()
         assert result.unwrap() == 42
         assert call_count == 3
@@ -207,7 +212,7 @@ class TestRetryDecorators:
         @retry.on_err(
             stop=stop_after_attempt(2),  # Only 2 attempts
             wait=wait_fixed(0.01),
-            log_attempts=False
+            log_attempts=False,
         )
         def limited_retries() -> Result[int, str]:
             nonlocal call_count
@@ -223,15 +228,17 @@ class TestRetryDecorators:
         call_count = 0
 
         @retry.on_err_type(
-            ValueError, RuntimeError, TypeError,
+            ValueError,
+            RuntimeError,
+            TypeError,
             stop=stop_after_attempt(4),
             wait=wait_fixed(0.01),
-            log_attempts=False
+            log_attempts=False,
         )
         def multi_exception_func() -> Result[int, Exception]:
             nonlocal call_count
             call_count += 1
-            
+
             if call_count == 1:
                 return Err.from_exception(ValueError("value error"))
             elif call_count == 2:
@@ -247,6 +254,7 @@ class TestRetryDecorators:
 
     def test_decorator_works_with_async_like_patterns(self):
         """Test decorator with functions that return different Result types."""
+
         @retry.on_err(stop=stop_after_attempt(2), log_attempts=False)
         def varying_return_types(success: bool) -> Result[str | int, str]:
             if success:
@@ -264,6 +272,7 @@ class TestRetryDecorators:
 
     def test_decorator_integration_with_result_factory_methods(self):
         """Test that decorators work with Result factory methods."""
+
         @retry.on_err(stop=stop_after_attempt(2), log_attempts=False)
         def using_result_factories() -> Result[int, Exception]:
             # Test with Result.from_callable
@@ -275,6 +284,7 @@ class TestRetryDecorators:
 
     def test_decorator_preserves_original_function_behavior(self):
         """Test that decorated functions behave identically to originals when successful."""
+
         def original_func(x: int, y: int) -> Result[int, str]:
             if x + y < 0:
                 return Err("negative sum")
@@ -310,11 +320,11 @@ class TestRetryUtilities:
             return "success"
 
         result = retry.with_retry(
-            successful_func, 
-            max_attempts=3, 
-            delay=0.01, 
-            backoff=False, 
-            log_attempts=False
+            successful_func,
+            max_attempts=3,
+            delay=0.01,
+            backoff=False,
+            log_attempts=False,
         )
         assert result.is_ok()
         assert result.unwrap() == "success"
@@ -336,7 +346,7 @@ class TestRetryUtilities:
             max_attempts=5,
             delay=0.01,
             backoff=False,
-            log_attempts=False
+            log_attempts=False,
         )
         assert result.is_ok()
         assert result.unwrap() == "success"
@@ -356,7 +366,7 @@ class TestRetryUtilities:
             max_attempts=3,
             delay=0.01,
             backoff=False,
-            log_attempts=False
+            log_attempts=False,
         )
         assert result.is_err()
         assert isinstance(result.unwrap_err(), ValueError)
@@ -376,7 +386,7 @@ class TestRetryUtilities:
             max_attempts=3,
             delay=0.01,
             backoff=False,
-            log_attempts=False
+            log_attempts=False,
         )
         assert result.is_ok()
         assert result.unwrap() == 42
@@ -398,7 +408,7 @@ class TestRetryUtilities:
             max_attempts=5,
             delay=0.01,
             backoff=False,
-            log_attempts=False
+            log_attempts=False,
         )
         assert result.is_ok()
         assert result.unwrap() == 42
@@ -418,7 +428,7 @@ class TestRetryUtilities:
             max_attempts=3,
             delay=0.01,
             backoff=False,
-            log_attempts=False
+            log_attempts=False,
         )
         assert result.is_err()
         assert call_count == 3
@@ -490,7 +500,7 @@ class TestResultRetryMethod:
 
         ok_result = Ok(42)
         final_result = ok_result.retry(fallback_func)
-        
+
         assert final_result.is_ok()
         assert final_result.unwrap() == 42  # Original value, not fallback
         assert call_count == 0  # Fallback never called
@@ -508,13 +518,9 @@ class TestResultRetryMethod:
 
         err_result = Err("original error")
         final_result = err_result.retry(
-            fallback_func,
-            max_attempts=3,
-            delay=0.01,
-            backoff=False,
-            log_attempts=False
+            fallback_func, max_attempts=3, delay=0.01, backoff=False, log_attempts=False
         )
-        
+
         assert final_result.is_ok()
         assert final_result.unwrap() == 99
         assert call_count == 2
@@ -523,12 +529,14 @@ class TestResultRetryMethod:
 class TestLogging:
     """Test retry logging functionality."""
 
-    @patch('logerr.retry.logger')
+    @patch("logerr.retry.logger")
     def test_retry_logging_enabled(self, mock_logger):
         """Test that retry attempts are logged when enabled."""
         call_count = 0
 
-        @retry.on_err(stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=True)
+        @retry.on_err(
+            stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=True
+        )
         def logged_operation() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
@@ -537,20 +545,22 @@ class TestLogging:
             return Ok(42)
 
         result = logged_operation()
-        
+
         assert result.is_ok()
         assert result.unwrap() == 42
-        
+
         # Check that debug logs were called
         assert mock_logger.debug.call_count >= 2  # At least start and attempt logs
         assert mock_logger.info.called  # Success after retry
 
-    @patch('logerr.retry.logger')
+    @patch("logerr.retry.logger")
     def test_retry_logging_disabled(self, mock_logger):
         """Test that retry attempts are not logged when disabled."""
         call_count = 0
 
-        @retry.on_err(stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False)
+        @retry.on_err(
+            stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False
+        )
         def silent_operation() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
@@ -559,10 +569,10 @@ class TestLogging:
             return Ok(42)
 
         result = silent_operation()
-        
+
         assert result.is_ok()
         assert result.unwrap() == 42
-        
+
         # Check that no logs were called
         assert not mock_logger.debug.called
         assert not mock_logger.info.called
@@ -576,7 +586,9 @@ class TestErrorHandling:
         """Test handling exceptions raised in decorated functions."""
         call_count = 0
 
-        @retry.on_err(stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False)
+        @retry.on_err(
+            stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False
+        )
         def exception_raising_func() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
@@ -585,7 +597,7 @@ class TestErrorHandling:
             return Ok(42)
 
         result = exception_raising_func()
-        
+
         # Should retry after exception and eventually succeed
         assert result.is_ok()
         assert result.unwrap() == 42
@@ -595,7 +607,9 @@ class TestErrorHandling:
         """Test handling mix of exceptions and Err results."""
         call_count = 0
 
-        @retry.on_err(stop=stop_after_attempt(3), wait=wait_fixed(0.01), log_attempts=False)
+        @retry.on_err(
+            stop=stop_after_attempt(3), wait=wait_fixed(0.01), log_attempts=False
+        )
         def mixed_failure_func() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
@@ -606,24 +620,26 @@ class TestErrorHandling:
             return Ok(42)
 
         result = mixed_failure_func()
-        
+
         # Should handle both types of failures and eventually succeed
         assert result.is_ok()
         assert result.unwrap() == 42
         assert call_count == 3
-        
+
     def test_exception_exhausts_retries(self):
         """Test that exceptions eventually exhaust retries."""
         call_count = 0
 
-        @retry.on_err(stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False)
+        @retry.on_err(
+            stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=False
+        )
         def always_exception_func() -> Result[int, str]:
             nonlocal call_count
             call_count += 1
             raise ValueError("always fails")
 
         result = always_exception_func()
-        
+
         # Should fail after exhausting retries
         assert result.is_err()
         # The retry mechanism returns a generic error message when all attempts fail

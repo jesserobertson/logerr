@@ -26,6 +26,8 @@ Key features:
 - `pixi run -e dev test` - Run test suite
 - `pixi run -e dev test-all` - Run tests including doctests
 - `pixi run -e dev typecheck` - Run type checking with mypy
+- `pixi run -e dev quality` - Run code quality checks (ruff lint + format check)
+- `pixi run -e dev check-all` - Run all checks (test, typecheck, quality) - **REQUIRED BEFORE COMMITS**
 
 ### Documentation
 - `pixi run -e docs docs-serve` - Serve documentation locally
@@ -81,6 +83,9 @@ logerr/
 - **pytest**: Test framework
 - **hypothesis**: Property-based testing
 - **mypy**: Static type checking
+- **ruff**: Linting and code formatting
+- **pytest-cov**: Test coverage reporting
+- **pre-commit**: Git hooks for code quality
 
 ### Documentation Dependencies (feature: docs)
 - **mkdocs**: Documentation site generator
@@ -141,6 +146,26 @@ config = logerr.get_config()
 logerr.reset_config()
 ```
 
+
+## Code Quality Requirements
+
+**CRITICAL**: Always run code quality checks before committing any changes:
+
+1. **Run all checks**: `pixi run -e dev check-all`
+   - This runs: tests, type checking (mypy), and code quality (ruff)
+   - This mirrors the exact checks run in GitHub CI
+   - **ALL CHECKS MUST PASS** before committing
+
+2. **Pre-commit hooks installed**: The repository uses pre-commit hooks that automatically run:
+   - Ruff linting and format checking
+   - MyPy type checking  
+   - All quality checks (check-all command)
+   - Tests are available as manual pre-commit hook
+
+3. **Individual quality commands**:
+   - `pixi run -e dev test` - Run test suite
+   - `pixi run -e dev typecheck` - Run mypy type checking
+   - `pixi run -e dev quality` - Run ruff lint + format checks
 
 ## Configuration
 
