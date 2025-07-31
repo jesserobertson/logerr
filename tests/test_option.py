@@ -42,7 +42,7 @@ class TestSome:
 
     def test_some_or_else(self):
         option = Some(42)
-        result = option.or_else(lambda: Some(0))
+        result = option.or_default(0)
         assert isinstance(result, Some)
         assert result.unwrap() == 42
 
@@ -121,7 +121,7 @@ class TestNothing:
 
     def test_nothing_or_else(self):
         option = Nothing("test reason")
-        result = option.or_else(lambda: Some(42))
+        result = option.or_default(42)
         assert isinstance(result, Some)
         assert result.unwrap() == 42
 
@@ -318,7 +318,7 @@ class TestChaining:
         option = (
             Nothing.empty()
             .map(lambda x: x * 2)
-            .or_else(lambda: Some(99))  # Recovery
+            .or_default(99)  # Recovery
             .map(lambda x: str(x))
         )
 

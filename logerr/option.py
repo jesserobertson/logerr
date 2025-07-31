@@ -192,6 +192,10 @@ class Option[T](ABC):
             Some(42)
             >>> Nothing.empty().or_else(lambda: Some(99))
             Some(99)
+
+            For simple defaults, consider using or_default():
+            >>> Nothing.empty().or_default(99)
+            Some(99)
         """
         pass
 
@@ -210,6 +214,26 @@ class Option[T](ABC):
             Some(42)
             >>> Some(5).filter(lambda x: x > 30)  # doctest: +ELLIPSIS
             Nothing(...)
+        """
+        pass
+
+    @abstractmethod
+    def or_default(self, default: T) -> Option[T]:
+        """Return Some(default) if this is Nothing, otherwise return this Some.
+
+        This is a convenience method equivalent to `or_else(lambda: Some(default))`.
+
+        Args:
+            default: The default value to wrap in Some if this is Nothing.
+
+        Returns:
+            The original Some if this is Some, otherwise Some(default).
+
+        Examples:
+            >>> Some(42).or_default(99)
+            Some(42)
+            >>> Nothing.empty().or_default(99)
+            Some(99)
         """
         pass
 
@@ -303,6 +327,9 @@ class Some(Option[T]):
             return Nothing.from_exception(e)
 
     def or_else(self, f: Callable[[], Option[T]]) -> Option[T]:
+        return self
+
+    def or_default(self, default: T) -> Option[T]:
         return self
 
     def filter(self, predicate: Callable[[T], bool]) -> Option[T]:
@@ -558,6 +585,9 @@ class Nothing(Option[T]):
             return f()
         except Exception as e:
             return Nothing.from_exception(e)
+
+    def or_default(self, default: T) -> Option[T]:
+        return Some(default)
 
     def filter(self, predicate: Callable[[T], bool]) -> Option[T]:
         return Nothing(self._reason, _skip_logging=True)

@@ -106,7 +106,7 @@ def load_config():
 # Functional pipeline with error recovery
 config = (
     load_config()
-    .or_else(lambda _: Ok({}))  # Fallback to empty config
+    .or_default({})  # Fallback to empty config
     .unwrap()
 )
 # 🪵 Automatically logs:
@@ -204,7 +204,7 @@ default_config = {
 
 config = (
     load_config("app.json")
-    .or_else(lambda _: Ok(default_config))
+    .or_default(default_config)
     .map(lambda cfg: resolve(cfg.get("database_url"), default=default_config["database_url"]))
     .unwrap()
 )

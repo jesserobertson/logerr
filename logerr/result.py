@@ -213,6 +213,30 @@ class Result[T, E](ABC):
             Ok(42)
             >>> Err("retry needed").or_else(retry)
             Ok(99)
+
+            For simple defaults, consider using or_default():
+            >>> Err("failed").or_default(42)
+            Ok(42)
+        """
+        pass
+
+    @abstractmethod
+    def or_default(self, default: T) -> Result[T, E]:
+        """Return Ok(default) if this is Err, otherwise return this Ok.
+
+        This is a convenience method equivalent to `or_else(lambda _: Ok(default))`.
+
+        Args:
+            default: The default value to wrap in Ok if this is Err.
+
+        Returns:
+            The original Ok if this is Ok, otherwise Ok(default).
+
+        Examples:
+            >>> Ok(42).or_default(99)
+            Ok(42)
+            >>> Err("failed").or_default(99)
+            Ok(99)
         """
         pass
 
@@ -314,6 +338,9 @@ class Ok(Result[T, E]):
             return Err(e)  # type: ignore
 
     def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
+        return Ok(self._value)
+
+    def or_default(self, default: T) -> Result[T, E]:
         return Ok(self._value)
 
     def __repr__(self) -> str:
@@ -541,6 +568,9 @@ class Err(Result[T, E]):
             return f(self._error)
         except Exception as e:
             return Err(e)  # type: ignore
+
+    def or_default(self, default: T) -> Result[T, E]:
+        return Ok(default)
 
     def __repr__(self) -> str:
         return f"Err({self._error!r})"
