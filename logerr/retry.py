@@ -20,6 +20,7 @@ from tenacity import (
     wait_fixed,
 )
 
+from .option import Option
 from .result import Err, Ok, Result
 
 T = TypeVar("T")
@@ -55,16 +56,18 @@ def on_err(
             last_result: Result[T, E] | None = None
             attempt_count = 0
 
-            # Set defaults inside function to avoid B008
-            actual_stop = stop if stop is not None else stop_after_attempt(3)
-            actual_wait = (
-                wait
-                if wait is not None
-                else wait_exponential(multiplier=1, min=4, max=10)
+            # Use functional API for parameter defaults
+
+            actual_stop = Option.from_nullable(stop).unwrap_or(stop_after_attempt(3))
+            actual_wait = Option.from_nullable(wait).unwrap_or(
+                wait_exponential(multiplier=1, min=4, max=10)
             )
 
             if log_attempts:
-                logger.debug(f"Starting retry operation for {func.__name__}")
+                func_name = Option.from_callable(lambda: func.__name__).unwrap_or(
+                    "callable"
+                )
+                logger.debug(f"Starting retry operation for {func_name}")
 
             try:
                 for attempt in Retrying(
@@ -79,7 +82,7 @@ def on_err(
                             if log_attempts:
                                 error_msg = getattr(result, "_error", "unknown error")
                                 logger.debug(
-                                    f"Attempt {attempt_count} of {func.__name__} failed: {error_msg}"
+                                    f"Attempt {attempt_count} of {func_name} failed: {error_msg}"
                                 )
 
                             # Convert to exception for tenacity
@@ -95,16 +98,14 @@ def on_err(
                         # Success case
                         if log_attempts and attempt_count > 1:
                             logger.info(
-                                f"{func.__name__} succeeded after {attempt_count} attempts"
+                                f"{func_name} succeeded after {attempt_count} attempts"
                             )
 
                         return result
 
             except RetryError:
                 if log_attempts:
-                    logger.warning(
-                        f"{func.__name__} failed after {attempt_count} attempts"
-                    )
+                    logger.warning(f"{func_name} failed after {attempt_count} attempts")
 
                 return last_result or Err.from_value("All retry attempts failed")  # type: ignore
 
@@ -141,17 +142,19 @@ def on_err_type(
             last_result: Result[T, E] | None = None
             attempt_count = 0
 
-            # Set defaults inside function to avoid B008
-            actual_stop = stop if stop is not None else stop_after_attempt(3)
-            actual_wait = (
-                wait
-                if wait is not None
-                else wait_exponential(multiplier=1, min=4, max=10)
+            # Use functional API for parameter defaults
+
+            actual_stop = Option.from_nullable(stop).unwrap_or(stop_after_attempt(3))
+            actual_wait = Option.from_nullable(wait).unwrap_or(
+                wait_exponential(multiplier=1, min=4, max=10)
             )
 
             if log_attempts:
+                func_name = Option.from_callable(lambda: func.__name__).unwrap_or(
+                    "callable"
+                )
                 logger.debug(
-                    f"Starting retry operation for {func.__name__} (retrying on: {error_types})"
+                    f"Starting retry operation for {func_name} (retrying on: {error_types})"
                 )
 
             try:
@@ -170,30 +173,28 @@ def on_err_type(
                             if isinstance(error, error_types):
                                 if log_attempts:
                                     logger.debug(
-                                        f"Attempt {attempt_count} of {func.__name__} failed with {type(error).__name__}: {error}"
+                                        f"Attempt {attempt_count} of {func_name} failed with {type(error).__name__}: {error}"
                                     )
                                 raise error
                             else:
                                 # Don't retry this error type
                                 if log_attempts:
                                     logger.debug(
-                                        f"{func.__name__} failed with non-retryable error {type(error).__name__}: {error}"
+                                        f"{func_name} failed with non-retryable error {type(error).__name__}: {error}"
                                     )
                                 return result
 
                         # Success case or non-retryable error
                         if log_attempts and attempt_count > 1:
                             logger.info(
-                                f"{func.__name__} succeeded after {attempt_count} attempts"
+                                f"{func_name} succeeded after {attempt_count} attempts"
                             )
 
                         return result
 
             except RetryError:
                 if log_attempts:
-                    logger.warning(
-                        f"{func.__name__} failed after {attempt_count} attempts"
-                    )
+                    logger.warning(f"{func_name} failed after {attempt_count} attempts")
 
                 return last_result or Err.from_value("All retry attempts failed")  # type: ignore
 
@@ -243,9 +244,8 @@ def with_retry[T](
     last_exception: Exception | None = None
 
     if log_attempts:
-        logger.debug(
-            f"Starting retry execution of {func.__name__ if hasattr(func, '__name__') else 'callable'}"
-        )
+        func_name = Option.from_callable(lambda: func.__name__).unwrap_or("callable")
+        logger.debug(f"Starting retry execution of {func_name}")
 
     try:
         for attempt in Retrying(
@@ -315,7 +315,7 @@ def until_ok[T, E](
     last_result: Result[T, E] | None = None
 
     if log_attempts:
-        func_name = func.__name__ if hasattr(func, "__name__") else "callable"
+        func_name = Option.from_callable(lambda: func.__name__).unwrap_or("callable")
         logger.debug(f"Starting retry execution of {func_name}")
 
     try:
@@ -329,9 +329,9 @@ def until_ok[T, E](
 
                 if result.is_ok():
                     if log_attempts and attempt_count > 1:
-                        func_name = (
-                            func.__name__ if hasattr(func, "__name__") else "callable"
-                        )
+                        func_name = Option.from_callable(
+                            lambda: func.__name__
+                        ).unwrap_or("callable")
                         logger.info(
                             f"{func_name} succeeded after {attempt_count} attempts"
                         )
@@ -355,7 +355,9 @@ def until_ok[T, E](
 
     except RetryError:
         if log_attempts:
-            func_name = func.__name__ if hasattr(func, "__name__") else "callable"
+            func_name = Option.from_callable(lambda: func.__name__).unwrap_or(
+                "callable"
+            )
             logger.warning(f"{func_name} failed after {attempt_count} attempts")
 
         return last_result or Err.from_value("All retry attempts failed")  # type: ignore

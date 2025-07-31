@@ -260,3 +260,4 @@ This project builds upon excellent prior work:
 - **[Rust's std::option and std::result](https://doc.rust-lang.org/)** - The foundational design patterns and method names
 - **[loguru](https://github.com/Delgan/loguru)** - The excellent logging library that powers our automatic error logging
 - **[confection](https://github.com/explosion/confection)** - Flexible configuration management system
+- **[tenacity](https://github.com/jd/tenacity)** - Robust retry library that powers our retry decorators and resilient operations

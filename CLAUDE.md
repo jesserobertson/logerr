@@ -48,6 +48,8 @@ logerr/
 │   ├── option.py     # Option<T>, Some<T>, Nothing implementation
 │   ├── result.py     # Result<T, E>, Ok<T>, Err<E> implementation
 │   ├── config.py     # Configuration management via confection
+│   ├── retry.py      # Retry decorators and utilities with tenacity integration
+│   ├── utils.py      # Reusable utility functions for functional patterns
 │   └── protocols.py  # Type protocols for comparison support
 ├── docs/             # Documentation
 │   ├── api/          # API reference documentation  
@@ -66,7 +68,9 @@ logerr/
 │   ├── test_comparisons.py
 │   ├── test_enhanced_predicates.py
 │   ├── test_option.py
-│   └── test_result.py
+│   ├── test_result.py
+│   ├── test_retry.py
+│   └── test_utils.py
 ├── mkdocs.yml        # Documentation configuration
 ├── pixi.toml         # Project configuration and dependencies
 ├── README.md         # Project README
@@ -77,7 +81,8 @@ logerr/
 
 ### Runtime Dependencies
 - **loguru**: Automatic logging of Result/Err cases
-- **confection**: Configuration management
+- **confection**: Configuration management  
+- **tenacity**: Retry decorators and utilities for resilient operations
 
 ### Development Dependencies (feature: dev)
 - **pytest**: Test framework
@@ -102,6 +107,173 @@ The library aims to replicate Rust's Option and Result types with Python's type 
 - Configuration-driven behavior through confection
 - Comparison support via type protocols
 - Comprehensive factory functions for creating Options and Results
+
+### Functional Programming Style
+
+**Preferred**: Use functional API patterns with pipeline-style chaining:
+
+```python
+# Good: Functional pipeline with inline lambdas for simple operations
+def load_config(path: str) -> Result[Config, Exception]:
+    return (
+        Result.from_predicate(
+            path,
+            lambda p: Path(p).exists(),
+            FileNotFoundError(f"Config not found: {path}")
+        )
+        .and_then(lambda p: Result.from_callable(lambda: Config().from_disk(p)))
+        .map(lambda config: config.get("app_section", {}))
+    )
+
+# Good: Use Option for nullable values
+def get_setting(key: str) -> Option[str]:
+    return Option.from_nullable(config.get(key))
+
+# Good: Chain operations instead of nested conditionals  
+result = (
+    get_user_input()
+    .filter(lambda x: len(x) > 0)
+    .map(str.upper)
+    .unwrap_or("DEFAULT")
+)
+```
+
+**Avoid**: Imperative try/catch patterns when functional alternatives exist:
+
+```python
+# Less preferred: Manual exception handling
+def load_config(path: str) -> Result[Config, Exception]:
+    try:
+        if not Path(path).exists():
+            return Err.from_exception(FileNotFoundError("Config not found"))
+        config = Config().from_disk(path)
+        return Ok(config)
+    except Exception as e:
+        return Err.from_exception(e)
+```
+
+**Guidelines**:
+- Use inline lambdas for simple operations (1-2 lines)
+- Extract complex logic into separate functions when lambdas become unreadable
+- Prefer `Result.from_callable`, `Result.from_predicate`, `Option.from_nullable` over manual construction
+- Use method chaining (.and_then, .map, .filter) for sequential operations
+- Avoid deep nesting - flatten with functional composition
+- **Use utility functions from `logerr.utils` for common patterns**
+
+## Common Functional Patterns & Utilities
+
+The `logerr.utils` module provides reusable utility functions for common functional patterns. These eliminate code duplication and provide consistent APIs across the library.
+
+### **Safe Execution Pattern**
+Use `execute()` instead of manual try/catch blocks:
+
+```python
+# Good: Using utility function
+from logerr.utils import execute
+
+result = execute(lambda: risky_operation())
+option_result = execute(lambda: maybe_none(), on_exception="option")
+
+# Less preferred: Manual try/catch
+try:
+    value = risky_operation()
+    return Ok(value)
+except Exception as e:
+    return Err.from_exception(e)
+```
+
+### **Nullable Value Handling**
+Use `nullable()` for consistent None handling:
+
+```python
+# Good: Standardized nullable handling
+from logerr.utils import nullable
+
+def get_config_value(key: str) -> Option[str]:
+    raw_value = config.get(key)
+    return nullable(raw_value, log_absence=True)
+
+# For Result types with custom errors:
+def validate_required_field(value: str | None) -> Result[str, ValueError]:
+    return nullable(
+        value,
+        return_type="result", 
+        error_factory=lambda: ValueError(f"Required field missing")
+    )
+```
+
+### **Validation with Predicates**
+Use `validate()` for consistent validation logic:
+
+```python
+# Good: Reusable validation pattern
+from logerr.utils import validate, error
+
+def validate_log_level(level: str) -> Result[str, ValueError]:
+    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    return validate(
+        level,
+        lambda x: x in valid_levels,
+        error_factory=error(level, "log level", valid_levels)
+    )
+```
+
+### **Safe Attribute Access**
+Use `attribute()` for exception-safe attribute access:
+
+```python
+# Good: Safe attribute access
+from logerr.utils import attribute
+
+func_name = attribute(func, "__name__", "callable")
+logger.debug(f"Executing {func_name}")
+
+# Less preferred: Manual hasattr checking
+func_name = func.__name__ if hasattr(func, "__name__") else "callable"
+```
+
+### **Context-Aware Logging**
+Use `log()` for consistent logging with caller information:
+
+```python
+# Good: Centralized context logging
+from logerr.utils import log
+
+def handle_error(error: Exception) -> None:
+    log(
+        f"Operation failed: {error}",
+        log_level="ERROR",
+        extra_context={"error_type": type(error).__name__}
+    )
+```
+
+### **Parameter Resolution**
+Use `resolve()` for consistent parameter handling:
+
+```python
+# Good: Functional parameter resolution
+from logerr.utils import resolve
+
+def retry_operation(max_attempts: int | None = None) -> None:
+    actual_attempts = resolve(
+        max_attempts, 
+        default=3,
+        validator=lambda x: x > 0
+    )
+```
+
+### **Available Utility Functions**
+
+| Function | Purpose | Common Use Cases |
+|----------|---------|------------------|
+| `execute()` | Execute callables with automatic Result/Option wrapping | Factory functions, risky operations |
+| `nullable()` | Convert None values to appropriate types | Configuration loading, optional parameters |
+| `validate()` | Predicate-based validation with consistent error handling | Input validation, constraint checking |
+| `log()` | Context-aware logging with caller information | Error logging, debugging |
+| `resolve()` | Parameter resolution with validation | Function parameters, configuration merging |
+| `chain()` | Exception-safe method chaining | Monadic operations (map, and_then) |
+| `attribute()` | Safe attribute access | Getting function names, object properties |
+| `error()` | Standardized validation error messages | Consistent error formatting |
 
 ## API Structure
 
