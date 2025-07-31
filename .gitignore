@@ -19,3 +19,11 @@ site/
 .envrc 
 .hypothesis
 .claude
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# PyPI credentials
+.pypirc
