@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from loguru import logger
-from tenacity import (
+from tenacity import (  # type: ignore[import-not-found]
     RetryError,
     Retrying,
     stop_after_attempt,
@@ -20,8 +20,8 @@ from tenacity import (
     wait_fixed,
 )
 
-from .option import Option
-from .result import Err, Ok, Result
+from ..option import Option
+from ..result import Err, Ok, Result
 
 T = TypeVar("T")
 E = TypeVar("E")
@@ -417,7 +417,7 @@ def _add_retry_method() -> None:
         return until_ok(func, max_attempts, delay, backoff, log_attempts)
 
     # Add the method to the Result class
-    from .result import Result
+    from ..result import Result
 
     Result.retry = retry  # type: ignore
 

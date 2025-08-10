@@ -21,6 +21,7 @@ Key features:
 - `pixi shell` - Activate the pixi environment
 - `pixi shell --feature dev` - Activate environment with dev dependencies
 - `pixi shell --feature docs` - Activate environment with documentation dependencies
+- `pixi shell --feature recipes` - Activate environment with recipes module (retry patterns)
 
 ### Testing and Quality
 - `pixi run -e dev test` - Run test suite
@@ -37,6 +38,7 @@ Key features:
 - Add dependencies: `pixi add <package-name>`
 - Add development dependencies: `pixi add --feature dev <package-name>`
 - Add documentation dependencies: `pixi add --feature docs <package-name>`
+- Add recipes dependencies: `pixi add --feature recipes <package-name>`
 - Remove dependencies: `pixi remove <package-name>`
 
 ## Project Structure
@@ -48,9 +50,11 @@ logerr/
 │   ├── option.py     # Option<T>, Some<T>, Nothing implementation
 │   ├── result.py     # Result<T, E>, Ok<T>, Err<E> implementation
 │   ├── config.py     # Configuration management via confection
-│   ├── retry.py      # Retry decorators and utilities with tenacity integration
 │   ├── utils.py      # Reusable utility functions for functional patterns
-│   └── protocols.py  # Type protocols for comparison support
+│   ├── protocols.py  # Type protocols for comparison support
+│   └── recipes/      # Optional extended functionality
+│       ├── __init__.py
+│       └── retry.py  # Retry decorators and utilities with tenacity integration
 ├── docs/             # Documentation
 │   ├── api/          # API reference documentation  
 │   │   ├── config.md
@@ -81,7 +85,9 @@ logerr/
 
 ### Runtime Dependencies
 - **loguru**: Automatic logging of Result/Err cases
-- **confection**: Configuration management  
+- **confection**: Configuration management
+
+### Optional Dependencies (feature: recipes)  
 - **tenacity**: Retry decorators and utilities for resilient operations
 
 ### Development Dependencies (feature: dev)

@@ -3,9 +3,15 @@
 import time
 from unittest.mock import patch
 
+import pytest
+
+# Skip all tests if tenacity is not available
+pytest.importorskip("tenacity")
+
 from tenacity import stop_after_attempt, wait_fixed
 
-from logerr import Err, Ok, Result, retry
+from logerr import Err, Ok, Result
+from logerr.recipes import retry
 
 
 class TestRetryDecorators:
@@ -529,7 +535,7 @@ class TestResultRetryMethod:
 class TestLogging:
     """Test retry logging functionality."""
 
-    @patch("logerr.retry.logger")
+    @patch("logerr.recipes.retry.logger")
     def test_retry_logging_enabled(self, mock_logger):
         """Test that retry attempts are logged when enabled."""
         call_count = 0
@@ -553,7 +559,7 @@ class TestLogging:
         assert mock_logger.debug.call_count >= 2  # At least start and attempt logs
         assert mock_logger.info.called  # Success after retry
 
-    @patch("logerr.retry.logger")
+    @patch("logerr.recipes.retry.logger")
     def test_retry_logging_disabled(self, mock_logger):
         """Test that retry attempts are not logged when disabled."""
         call_count = 0

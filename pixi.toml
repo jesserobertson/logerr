@@ -10,7 +10,6 @@ version = "0.1.0"
 [dependencies]
 loguru = ">=0.7.3,<0.8"
 confection = ">=0.1.5,<0.2"
-tenacity = ">=9.1.2,<10"
 
 [feature.dev.dependencies]
 pytest = "*"
@@ -19,6 +18,9 @@ mypy = "*"
 pytest-cov = ">=6.2.1,<7"
 ruff = "*"
 pre-commit = ">=4.2.0,<5"
+python-build = ">=1.2.2.post1,<2"
+twine = ">=6.1.0,<7"
+tenacity = ">=9.1.2,<10"
 
 [feature.dev.tasks]
 test = "pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term"
@@ -26,6 +28,8 @@ test-all = "pytest tests/ --doctest-modules logerr"
 typecheck = "mypy logerr"
 quality = "ruff check logerr tests && ruff format --check logerr tests"
 clean = "rm -rf htmlcov/ site/ .coverage .pytest_cache/ **/__pycache__/ **/*.pyc .mypy_cache/ .hypothesis/"
+build = "python -m build"
+distribute = "twine upload dist/*"
 check-all = { depends-on = ["test", "typecheck", "quality"] }
 
 [feature.docs.dependencies]
@@ -38,6 +42,12 @@ mkdocstrings-python = "*"
 docs-serve = "mkdocs serve"
 docs-build = "mkdocs build"
 
+[feature.recipes.dependencies]
+tenacity = ">=9.1.2,<10"
+pymongo = ">=4.0.0,<5"
+pandas = ">=2.0.0,<3"
+
 [environments]
 dev = ["dev"] 
 docs = ["docs"]
+recipes = ["recipes", "dev"]

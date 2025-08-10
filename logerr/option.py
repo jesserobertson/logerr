@@ -14,7 +14,7 @@ from typing import Any, TypeVar
 
 from loguru import logger
 
-from .config import get_config, get_log_level_for_library, should_log_for_library
+from .config import get_log_level, should_log
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -424,60 +424,37 @@ class Nothing(Option[T]):
 
     def _log_nothing(self) -> None:
         """Log the Nothing case using configured logging settings."""
-        config = get_config()
-
         # Check if logging is enabled globally
-        if not config.enabled:
+        if not should_log():
             return
 
-        # Get the calling frame to capture context
+        # Get the calling frame to capture basic context
         frame = inspect.currentframe()
         caller_frame = None
-        library_name = "unknown"
 
         if frame and frame.f_back and frame.f_back.f_back:
             caller_frame = frame.f_back.f_back
-            # Try to determine library name from the calling module
-            if caller_frame.f_code.co_filename:
-                # Extract library name from file path
-                import os
 
-                filename = caller_frame.f_code.co_filename
-                # Simple heuristic: use the parent directory name
-                library_name = os.path.basename(os.path.dirname(filename))
-
-        # Check if logging is enabled for this library
-        if not should_log_for_library(library_name):
-            return
-
-        # Capture context based on configuration
+        # Capture basic context
         context: dict[str, Any] = {}
-        if config.capture_function_name and caller_frame:
-            context["function"] = caller_frame.f_code.co_name
-        if config.capture_filename and caller_frame:
-            context["file"] = caller_frame.f_code.co_filename
-        if config.capture_lineno and caller_frame:
-            context["line"] = caller_frame.f_lineno
-        if config.capture_locals and caller_frame:
-            context["locals"] = {
-                k: v for k, v in caller_frame.f_locals.items() if not k.startswith("_")
-            }
+        if caller_frame:
+            import os
 
-        # Get log level for this library (default to WARNING for Nothing cases)
-        log_level = get_log_level_for_library(library_name).upper()
-        # For Nothing cases, we might want to use a lower severity by default
+            context["function"] = caller_frame.f_code.co_name
+            context["file"] = os.path.basename(caller_frame.f_code.co_filename)
+            context["line"] = caller_frame.f_lineno
+
+        # For Nothing cases, use WARNING level by default (less severe than ERROR)
+        log_level = get_log_level()
         if log_level == "ERROR":
             log_level = "WARNING"
 
-        # Build log message
-        if config.format:
-            message = config.format.format(reason=self._reason, **context)
-        else:
-            location = f"{context.get('function', '<?>')}:{context.get('line', '?')}"
-            message = f"Option Nothing in {location} - {self._reason}"
+        # Build simple log message
+        location = f"{context.get('function', '<?>')}:{context.get('line', '?')}"
+        message = f"Option Nothing in {location} - {self._reason}"
 
         # Log at the configured level
-        logger.log(log_level, message, **context, reason=self._reason)
+        logger.bind(**context).log(log_level, message)
 
     @classmethod
     def from_exception(cls, exception: Exception) -> Nothing[T]:

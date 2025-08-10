@@ -75,6 +75,44 @@ cd logerr
 pip install -e .
 ```
 
+### Optional Features
+
+**Recipes Module**: Advanced patterns and utilities for specialized use cases:
+
+```bash
+# Install with recipes (includes retry patterns, advanced utilities, config, and dataframes)
+pixi run -e recipes
+
+# Use in your code
+from logerr.recipes import retry, utilities, config, dataframes
+
+@retry.on_err(max_attempts=3)
+def flaky_operation() -> Result[int, str]:
+    return Ok(42)
+
+# Advanced utilities
+from logerr.recipes.utilities import validate, pipe, try_chain
+
+# Advanced configuration
+config.configure_advanced({
+    "libraries": {"my_module": {"level": "DEBUG"}},
+    "capture_locals": True
+})
+
+# NoSQL to DataFrame conversion with data quality logging
+from logerr.recipes.dataframes import Required, from_mongo
+
+schema = {
+    "user_id": Required[str],  # Must be present
+    "email": Required[str],    # Must be present
+    "name": str,              # Optional by default
+    "age": int,               # Optional by default
+}
+
+df_result = from_mongo(db.users, {"status": "active"}, schema=schema)
+df = df_result.unwrap_or_default()
+```
+
 ## 🔍 Why logerr?
 
 ### See the Difference
@@ -142,26 +180,30 @@ config = (
 ### Database Connection with Retry Logic
 
 ```python
-from logerr import Result, Err
-from logerr.utils import execute, validate
+from logerr import Result, Ok, Err
+from logerr.recipes import retry  # Requires: pixi install --feature recipes
 from typing import Any
 
-def connect_to_database(url: str) -> Result[Any, str]:
-    """Connect with automatic error handling using execute utility"""
-    return execute(lambda: database.connect(url))
+@retry.on_err(max_attempts=3, log_attempts=True)
+def connect_to_database(url: str) -> Result[Any, Exception]:
+    """Connect with automatic retry on failure"""
+    try:
+        connection = database.connect(url)
+        return Ok(connection)
+    except ConnectionError as e:
+        return Err.from_exception(e)
 
-def retry_on_timeout(error: str) -> Result[Any, str]:
-    """Functional retry logic using validation utility"""
+# Alternative functional approach with retry utility
+def connect_with_fallback() -> Result[Any, Exception]:
+    """Try primary, then backup with retry logic"""
     return (
-        validate(error, lambda e: "timeout" in e.lower(), None)
-        .and_then(lambda _: connect_to_database("backup-server.db"))
-        .map_err(lambda _: f"Connection failed: {error}")
+        retry.with_retry(lambda: database.connect("primary-server.db"))
+        .or_else(lambda _: retry.with_retry(lambda: database.connect("backup-server.db")))
     )
 
-# Functional pipeline with automatic retry and logging  
+# Usage - automatic retry and logging  
 result = (
     connect_to_database("primary-server.db")
-    .or_else(retry_on_timeout)
     .map(lambda conn: "Connected successfully!")
     .unwrap_or("All connection attempts failed - check logs")
 )
@@ -248,29 +290,83 @@ greeting = (
 print(greeting)  # 👋 Alice Smith (Role: admin)
 ```
 
+### NoSQL to DataFrame with Data Quality Logging
+
+```python
+from logerr.recipes.dataframes import Required, from_mongo
+from logerr import configure
+
+# Configure logging for data quality reports
+configure(level="INFO")
+
+# Define schema: Required fields must be present, others are optional by default
+schema = {
+    "user_id": Required[str],      # Must be present - error if missing
+    "email": Required[str],        # Must be present - error if missing
+    "name": str,                  # Optional[str] by default
+    "age": int,                   # Optional[int] by default  
+    "bio": str,                   # Optional[str] by default
+    "preferences": dict,          # Optional[dict] by default
+    "created_at": datetime,       # Optional[datetime] by default
+    "tags": List[str],           # Optional[List[str]] by default
+}
+
+# Safe MongoDB querying with automatic data quality logging
+result = from_mongo(
+    collection=db.users,
+    query={"status": "active", "last_login": {"$gte": last_month}}, 
+    schema=schema,
+    log_missing_data=True,        # Enable data quality reporting
+    report_name="active_users"
+)
+
+# Handle the result functionally
+df = (
+    result
+    .map(lambda df: df[df['age'].notna()])  # Filter out users without age
+    .map(lambda df: df.fillna({"bio": "No bio provided"}))  # Fill missing bios
+    .unwrap_or_else(lambda error: handle_data_error(error))
+)
+
+# Automatic logging output:
+# 2024-01-15 14:23:12 | INFO    | Data Quality Summary for 'active_users': 1847/2000 records processed successfully (92.4% success rate)
+# 2024-01-15 14:23:12 | WARNING | Field 'bio': 612/2000 missing (30.6% missing rate)  
+# 2024-01-15 14:23:12 | ERROR   | Missing required field 'email' in 153/2000 records - excluding from DataFrame
+# 2024-01-15 14:23:12 | WARNING | Field 'age': 23 type conversion errors (1.2% of present values)
+```
+
 ## ⚙️ Configuration
 
-Customize logging behavior per library:
+**Core Configuration** (simple and lightweight):
 
 ```python
 import logerr
 
-# Global configuration
-logerr.configure({
-    "enabled": True,
-    "level": "WARNING",
-    "format": "Error in {function}: {error}",
-    "capture_locals": False
-})
+# Basic configuration - just the essentials
+logerr.configure(enabled=True, level="WARNING")
+logerr.configure(level="INFO")  # Just change log level
+```
 
-# Per-library configuration  
-logerr.configure({
+**Advanced Configuration** (requires recipes module):
+
+```python
+from logerr.recipes import config
+
+# Advanced configuration with per-library settings
+config.configure_advanced({
+    "enabled": True,
+    "level": "WARNING", 
     "libraries": {
         "myapp.database": {"level": "ERROR"},
         "myapp.api": {"level": "DEBUG"},
         "third_party_lib": {"enabled": False}
-    }
+    },
+    "capture_locals": True,
+    "capture_filename": True
 })
+
+# Load from configuration file
+config.configure_from_confection("config.cfg")
 ```
 
 ## 🧪 Development
@@ -280,6 +376,9 @@ This project uses [pixi](https://pixi.sh) for development:
 ```bash
 # Install dependencies
 pixi install
+
+# Install with recipes module for advanced patterns and utilities
+pixi run -e recipes
 
 # Run tests
 pixi run -e dev test
