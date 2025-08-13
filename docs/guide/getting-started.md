@@ -98,10 +98,10 @@ The cleanest way to create Results and Options is through factory functions:
 from logerr import Result
 
 # From a callable that might raise
-result_value = Result.from_callable(lambda: int("42"))
+result_value = Result.of(lambda: int("42"))
 print(result_value.unwrap())  # 42
 
-result_value = Result.from_callable(lambda: int("not a number"))
+result_value = Result.of(lambda: int("not a number"))
 print(result_value.is_err())  # True - exception was caught and logged
 
 # From an optional value
@@ -127,7 +127,7 @@ option_value = Option.from_nullable(config.get("missing_key"))
 print(option_value.is_nothing())  # True
 
 # From a callable that might return None
-option_value = Option.from_callable(lambda: config.get("database_url"))
+option_value = Option.of(lambda: config.get("database_url"))
 print(option_value.is_some())  # True
 
 # From a predicate
@@ -149,7 +149,7 @@ from logerr import Err, Result, configure
 error_result = Err("database connection failed")
 
 # This also logs when the callable fails
-result_value = Result.from_callable(lambda: 1 / 0)
+result_value = Result.of(lambda: 1 / 0)
 
 # Configure logging levels
 configure({
@@ -169,10 +169,10 @@ from logerr import Result
 import json
 
 # Complex pipeline with error handling
-result_value = (Result.from_callable(lambda: open("config.json").read())
-    .and_then(lambda text: Result.from_callable(lambda: json.loads(text)))
+result_value = (Result.of(lambda: open("config.json").read())
+    .then(lambda text: Result.of(lambda: json.loads(text)))
     .map(lambda config: config.get("database_url"))
-    .and_then(lambda url: Result.from_optional(url, "No database URL in config"))
+    .then(lambda url: Result.from_optional(url, "No database URL in config"))
     .unwrap_or("sqlite:///default.db"))
 
 print(f"Database URL: {result_value}")
@@ -188,10 +188,10 @@ from logerr import Result, Err
 def retry_operation(error):
     """Retry logic for failed operations."""
     if "timeout" in str(error):
-        return Result.from_callable(lambda: "retry successful")
+        return Result.of(lambda: "retry successful")
     return Err("permanent failure")
 
-result_value = (Result.from_callable(lambda: raise_timeout_error())
+result_value = (Result.of(lambda: raise_timeout_error())
     .or_else(retry_operation)
     .unwrap_or("fallback value"))
 ```

@@ -63,13 +63,13 @@ class TestOptionPredicateEnhancements:
         """Test using predicate_filter with method chaining."""
         is_long_string = logerr.option.predicate_filter(lambda s: len(s) > 3)
 
-        result = Some("hello").and_then(is_long_string).map(str.upper)
+        result = Some("hello").then(is_long_string).map(str.upper)
 
         assert result.is_some()
         assert result.unwrap() == "HELLO"
 
         # Test with short string that fails the filter
-        result = Some("hi").and_then(is_long_string).map(str.upper)
+        result = Some("hi").then(is_long_string).map(str.upper)
 
         assert result.is_nothing()
 
@@ -129,12 +129,7 @@ class TestResultPredicateEnhancements:
         )
 
         # Test successful chain
-        result = (
-            Ok(42)
-            .and_then(validate_positive)
-            .and_then(validate_even)
-            .map(lambda x: x * 2)
-        )
+        result = Ok(42).then(validate_positive).then(validate_even).map(lambda x: x * 2)
 
         assert result.is_ok()
         assert result.unwrap() == 84
@@ -142,8 +137,8 @@ class TestResultPredicateEnhancements:
         # Test chain that fails at second validator
         result = (
             Ok(3)  # positive but odd
-            .and_then(validate_positive)
-            .and_then(validate_even)
+            .then(validate_positive)
+            .then(validate_even)
             .map(lambda x: x * 2)
         )
 

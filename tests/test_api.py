@@ -23,13 +23,13 @@ class TestCleanAPI:
 
     def test_result_factories(self):
         """Test result factory functions through module namespace."""
-        # Test from_callable
-        result = logerr.result.from_callable(lambda: 42)
+        # Test of
+        result = logerr.result.of(lambda: 42)
         assert isinstance(result, Ok)
         assert result.unwrap() == 42
 
-        # Test from_callable with exception
-        result = logerr.result.from_callable(lambda: 1 / 0)
+        # Test of with exception
+        result = logerr.result.of(lambda: 1 / 0)
         assert isinstance(result, Err)
 
         # Test from_optional
@@ -51,12 +51,12 @@ class TestCleanAPI:
         option = logerr.option.from_nullable(None)
         assert isinstance(option, Nothing)
 
-        # Test from_callable
-        option = logerr.option.from_callable(lambda: 42)
+        # Test of
+        option = logerr.option.of(lambda: 42)
         assert isinstance(option, Some)
         assert option.unwrap() == 42
 
-        option = logerr.option.from_callable(lambda: None)
+        option = logerr.option.of(lambda: None)
         assert isinstance(option, Nothing)
 
         # Test from_predicate
@@ -112,7 +112,7 @@ class TestAPIDocumentation:
             else:
                 raise ValueError("Invalid URL")
 
-        port_result = logerr.result.from_callable(lambda: parse_port(url))
+        port_result = logerr.result.of(lambda: parse_port(url))
         assert port_result.is_ok()
         assert port_result.unwrap() == 5432
 
@@ -131,10 +131,7 @@ class TestAPIDocumentation:
 
         # Same with Result
         result = (
-            logerr.result.from_callable(lambda: "42")
-            .map(int)
-            .map(lambda x: x * 2)
-            .unwrap_or(0)
+            logerr.result.of(lambda: "42").map(int).map(lambda x: x * 2).unwrap_or(0)
         )
 
         assert result == 84

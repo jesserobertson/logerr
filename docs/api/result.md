@@ -14,6 +14,6 @@ The Result module provides Rust-like Result<T, E> types for handling operations 
 
 ## Factory Functions
 
-::: logerr.result.from_callable
+::: logerr.result.of
 
 ::: logerr.result.from_optional

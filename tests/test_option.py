@@ -34,17 +34,16 @@ class TestSome:
         assert isinstance(mapped, Some)
         assert mapped.unwrap() == 84
 
-    def test_some_and_then(self):
+    def test_some_then(self):
         option = Some(42)
-        chained = option.and_then(lambda x: Some(x * 2))
+        chained = option.then(lambda x: Some(x * 2))
         assert isinstance(chained, Some)
         assert chained.unwrap() == 84
 
     def test_some_or_else(self):
         option = Some(42)
-        result = option.or_default(0)
-        assert isinstance(result, Some)
-        assert result.unwrap() == 42
+        result = option.unwrap_or(0)
+        assert result == 42
 
     def test_some_filter_passes(self):
         option = Some(42)
@@ -67,13 +66,13 @@ class TestSome:
         mapped = option.map(lambda x: None)  # Returns None
         assert isinstance(mapped, Nothing)
 
-    def test_some_and_then_exception_handling(self):
-        """Test that Some.and_then handles exceptions in callback functions."""
+    def test_some_then_exception_handling(self):
+        """Test that Some.then handles exceptions in callback functions."""
 
         def failing_func(x):
             raise ValueError("test error")
 
-        result = Some(42).and_then(failing_func)
+        result = Some(42).then(failing_func)
         assert result.is_nothing()
         assert isinstance(result, Nothing)
 
@@ -114,16 +113,15 @@ class TestNothing:
         mapped = option.map(lambda x: x * 2)
         assert isinstance(mapped, Nothing)
 
-    def test_nothing_and_then_returns_nothing(self):
+    def test_nothing_then_returns_nothing(self):
         option = Nothing("test reason")
-        chained = option.and_then(lambda x: Some(x * 2))
+        chained = option.then(lambda x: Some(x * 2))
         assert isinstance(chained, Nothing)
 
     def test_nothing_or_else(self):
         option = Nothing("test reason")
-        result = option.or_default(42)
-        assert isinstance(result, Some)
-        assert result.unwrap() == 42
+        result = option.unwrap_or(42)
+        assert result == 42
 
     def test_nothing_filter_returns_nothing(self):
         option = Nothing("test reason")
@@ -159,17 +157,17 @@ class TestOptionFactories:
         option = logerr.option.from_nullable(None)
         assert isinstance(option, Nothing)
 
-    def test_option_from_callable_some(self):
-        option = logerr.option.from_callable(lambda: 42)
+    def test_option_of_some(self):
+        option = logerr.option.of(lambda: 42)
         assert isinstance(option, Some)
         assert option.unwrap() == 42
 
-    def test_option_from_callable_none(self):
-        option = logerr.option.from_callable(lambda: None)
+    def test_option_of_none(self):
+        option = logerr.option.of(lambda: None)
         assert isinstance(option, Nothing)
 
-    def test_option_from_callable_exception(self):
-        option = logerr.option.from_callable(lambda: 1 / 0)
+    def test_option_of_exception(self):
+        option = logerr.option.of(lambda: 1 / 0)
         assert isinstance(option, Nothing)
 
     def test_option_from_predicate_success(self):
@@ -277,7 +275,7 @@ class TestChaining:
         option = (
             Some(42)
             .map(lambda x: x * 2)
-            .and_then(lambda x: Some(x + 1))
+            .then(lambda x: Some(x + 1))
             .filter(lambda x: x > 80)
             .map(lambda x: str(x))
         )
@@ -289,7 +287,7 @@ class TestChaining:
         option = (
             Nothing.empty()  # Use empty() to avoid logging in test
             .map(lambda x: x * 2)  # Should not execute
-            .and_then(lambda x: Some(x + 1))  # Should not execute
+            .then(lambda x: Some(x + 1))  # Should not execute
             .filter(lambda x: x > 80)  # Should not execute
             .map(lambda x: str(x))
         )  # Should not execute

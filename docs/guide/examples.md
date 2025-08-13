@@ -31,7 +31,7 @@ class DatabaseManager:
     
     def connect(self) -> logerr.Result[sqlite3.Connection, str]:
         """Connect to database."""
-        return logerr.result.from_callable(
+        return logerr.result.of(
             lambda: sqlite3.connect(self.db_path)
         ).map_err(lambda e: f"Database connection failed: {e}")
     
@@ -48,7 +48,7 @@ class DatabaseManager:
                     return {"id": row[0], "name": row[1], "email": row[2]}
                 raise ValueError(f"User {user_id} not found")
         
-        return logerr.result.from_callable(query_user)
+        return logerr.result.of(query_user)
     
     def create_user(self, name: str, email: str) -> logerr.Result[int, str]:
         """Create a new user."""
@@ -60,7 +60,7 @@ class DatabaseManager:
                 )
                 return cursor.lastrowid
         
-        return logerr.result.from_callable(insert_user).map_err(
+        return logerr.result.of(insert_user).map_err(
             lambda e: f"Failed to create user: {e}"
         )
 
@@ -72,8 +72,8 @@ class ConfigManager:
     
     def _load_config(self, path: str) -> Dict:
         """Load configuration file."""
-        result = (logerr.result.from_callable(lambda: Path(path).read_text())
-            .and_then(lambda text: logerr.result.from_callable(lambda: json.loads(text))))
+        result = (logerr.result.of(lambda: Path(path).read_text())
+            .then(lambda text: logerr.result.of(lambda: json.loads(text))))
         
         return result.unwrap_or({})
     
@@ -84,7 +84,7 @@ class ConfigManager:
     def get_int(self, key: str) -> logerr.Option[int]:
         """Get integer configuration value."""
         return (self.get_string(key)
-            .and_then(lambda s: logerr.option.from_callable(lambda: int(s))))
+            .then(lambda s: logerr.option.of(lambda: int(s))))
     
     def get_bool(self, key: str) -> logerr.Option[bool]:
         """Get boolean configuration value."""
@@ -110,7 +110,7 @@ class UserService:
         """Create user with validation."""
         return (self.validate_email(email)
             .ok_or("Invalid email address")
-            .and_then(lambda _: self.db.create_user(name, email)))
+            .then(lambda _: self.db.create_user(name, email)))
     
     def get_user_with_defaults(self, user_id: int) -> Dict:
         """Get user with default values."""
@@ -162,12 +162,12 @@ from typing import List, Dict, Any
 
 def read_file(path: str) -> logerr.Result[str, str]:
     """Read file contents."""
-    return (logerr.result.from_callable(lambda: Path(path).read_text())
+    return (logerr.result.of(lambda: Path(path).read_text())
         .map_err(lambda e: f"Failed to read {path}: {e}"))
 
 def parse_json(content: str) -> logerr.Result[Any, str]:
     """Parse JSON content."""
-    return (logerr.result.from_callable(lambda: json.loads(content))
+    return (logerr.result.of(lambda: json.loads(content))
         .map_err(lambda e: f"Invalid JSON: {e}"))
 
 def validate_schema(data: Dict, required_fields: List[str]) -> logerr.Result[Dict, str]:
@@ -179,7 +179,7 @@ def validate_schema(data: Dict, required_fields: List[str]) -> logerr.Result[Dic
 
 def process_user_data(data: Dict) -> logerr.Result[Dict, str]:
     """Process and normalize user data."""
-    return (logerr.result.from_callable(lambda: {
+    return (logerr.result.of(lambda: {
         "id": int(data["id"]),
         "name": data["name"].strip(),
         "email": data["email"].lower(),
@@ -196,7 +196,7 @@ def write_csv(data: List[Dict], output_path: str) -> logerr.Result[str, str]:
                 writer.writerows(data)
         return output_path
     
-    return (logerr.result.from_callable(write_data)
+    return (logerr.result.of(write_data)
         .map_err(lambda e: f"Failed to write CSV: {e}"))
 
 def process_file_pipeline(input_path: str, output_path: str) -> logerr.Result[str, str]:
@@ -204,11 +204,11 @@ def process_file_pipeline(input_path: str, output_path: str) -> logerr.Result[st
     required_fields = ["id", "name", "email"]
     
     return (read_file(input_path)
-        .and_then(parse_json)
-        .and_then(lambda data: validate_schema(data, required_fields))
-        .and_then(process_user_data)
+        .then(parse_json)
+        .then(lambda data: validate_schema(data, required_fields))
+        .then(process_user_data)
         .map(lambda user: [user])  # Convert to list for CSV
-        .and_then(lambda users: write_csv(users, output_path)))
+        .then(lambda users: write_csv(users, output_path)))
 
 # Usage
 result = process_file_pipeline("user.json", "user.csv")
@@ -242,7 +242,7 @@ class HttpClient:
         """Make HTTP request."""
         full_url = f"{self.base_url}{url}" if self.base_url else url
         
-        return (logerr.result.from_callable(
+        return (logerr.result.of(
             lambda: self.session.request(method, full_url, timeout=self.timeout, **kwargs)
         ).map_err(lambda e: f"HTTP request failed: {e}"))
     
@@ -254,21 +254,21 @@ class HttpClient:
     
     def _parse_json(self, response: requests.Response) -> logerr.Result[Dict[str, Any], str]:
         """Parse JSON response."""
-        return (logerr.result.from_callable(lambda: response.json())
+        return (logerr.result.of(lambda: response.json())
             .map_err(lambda e: f"Failed to parse JSON: {e}"))
     
     def get_json(self, url: str, **kwargs) -> logerr.Result[Dict[str, Any], str]:
         """GET request returning JSON."""
         return (self._make_request("GET", url, **kwargs)
-            .and_then(self._check_response)
-            .and_then(self._parse_json))
+            .then(self._check_response)
+            .then(self._parse_json))
     
     def post_json(self, url: str, data: Dict[str, Any], **kwargs) -> logerr.Result[Dict[str, Any], str]:
         """POST request with JSON data."""
         kwargs.setdefault("json", data)
         return (self._make_request("POST", url, **kwargs)
-            .and_then(self._check_response)
-            .and_then(self._parse_json))
+            .then(self._check_response)
+            .then(self._parse_json))
     
     def with_retry(self, operation, max_retries: int = 3, delay: float = 1.0):
         """Retry operation on failure."""
@@ -301,7 +301,7 @@ class ApiClient:
     def create_user(self, user_data: Dict[str, Any]) -> logerr.Result[Dict[str, Any], str]:
         """Create a new user."""
         return (self._validate_user_data(user_data)
-            .and_then(lambda data: self.client.post_json(
+            .then(lambda data: self.client.post_json(
                 "/users", data, headers=self._auth_headers()
             )))
     
@@ -381,8 +381,8 @@ class ConfigLoader:
     
     def add_file_source(self, path: str) -> 'ConfigLoader':
         """Add a JSON configuration file source."""
-        config_data = (logerr.result.from_callable(lambda: Path(path).read_text())
-            .and_then(lambda text: logerr.result.from_callable(lambda: json.loads(text)))
+        config_data = (logerr.result.of(lambda: Path(path).read_text())
+            .then(lambda text: logerr.result.of(lambda: json.loads(text)))
             .unwrap_or({}))
         
         self.sources.append(("file", config_data))
@@ -430,7 +430,7 @@ class ConfigLoader:
     def get_int(self, key: str, default: int = 0) -> int:
         """Get integer value with default."""
         return (self.get_value(key)
-            .and_then(lambda v: logerr.option.from_callable(lambda: int(v)))
+            .then(lambda v: logerr.option.of(lambda: int(v)))
             .unwrap_or(default))
     
     def get_bool(self, key: str, default: bool = False) -> bool:

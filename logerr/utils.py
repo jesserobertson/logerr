@@ -10,15 +10,13 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal
 
 from loguru import logger
 
 from .config import get_log_level, should_log
 from .option import Nothing, Some
 from .result import Err, Ok
-
-T = TypeVar("T")
 
 
 def execute[T](
@@ -65,7 +63,7 @@ def execute[T](
             return Err.from_exception(default_error or e)
 
 
-def nullable(
+def nullable[T](
     value: T | None,
     *,
     error_factory: Callable[[], Any] | Any | None = None,

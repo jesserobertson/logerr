@@ -8,18 +8,13 @@ Option/Result functionality. For basic utilities, use logerr.utils
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal
 
 from ..option import Nothing, Option, Some
 from ..result import Err, Ok
 
-T = TypeVar("T")
-U = TypeVar("U")
-E = TypeVar("E")
-M = TypeVar("M")
 
-
-def validate(
+def validate[T, E](
     value: T,
     predicate: Callable[[T], bool],
     *,
@@ -75,7 +70,7 @@ def validate(
             raise
 
 
-def resolve(
+def resolve[T](
     provided: T | None, default: T, *, validator: Callable[[T], bool] | None = None
 ) -> T:
     """Resolve parameter values using Option chaining with validation.
@@ -109,7 +104,7 @@ def resolve(
     return resolved
 
 
-def chain(
+def chain[T, U, M](
     value: T,
     operation: Callable[[T], U],
     *,
@@ -119,7 +114,7 @@ def chain(
     """Execute operations in a chain while safely handling exceptions.
 
     Eliminates the repetitive try/catch blocks found in monadic operations
-    like map, and_then, filter across Option and Result types.
+    like map, then, filter across Option and Result types.
 
     Args:
         value: The input value to transform
@@ -169,7 +164,7 @@ def attribute(obj: Any, attr_name: str, default: Any = "unknown") -> Any:
         'unknown'
     """
 
-    return Option.from_callable(lambda: getattr(obj, attr_name)).unwrap_or(default)  # type: ignore
+    return Option.of(lambda: getattr(obj, attr_name)).unwrap_or(default)  # type: ignore
 
 
 def error(
@@ -201,7 +196,7 @@ def error(
 
 
 # Convenience function for pipeline-style functional composition
-def pipe(value: T, *functions: Callable[[Any], Any]) -> Any:
+def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Any:
     """Apply a series of functions in pipeline fashion.
 
     Enables clean functional composition without deep nesting.
@@ -230,7 +225,7 @@ def pipe(value: T, *functions: Callable[[Any], Any]) -> Any:
     return result
 
 
-def try_chain(*callables: Callable[[], T]) -> Option[T]:
+def try_chain[T](*callables: Callable[[], T]) -> Option[T]:
     """Try a series of callables until one succeeds.
 
     Useful for fallback patterns where you want to try multiple approaches.

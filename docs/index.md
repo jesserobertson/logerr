@@ -23,7 +23,7 @@ from logerr import Ok, Err, Some, Nothing
 def risky_operation():
     raise ConnectionError("Database connection failed")
 
-result = logerr.result.from_callable(risky_operation)
+result = logerr.result.of(risky_operation)
 if result.is_ok():
     print(f"Success: {result.unwrap()}")
 else:
@@ -95,14 +95,14 @@ from pathlib import Path
 
 def load_user_config(path: str) -> logerr.Result[dict, str]:
     """Load and parse user configuration file."""
-    return (logerr.result.from_callable(lambda: Path(path).read_text())
-        .and_then(lambda text: logerr.result.from_callable(lambda: json.loads(text)))
+    return (logerr.result.of(lambda: Path(path).read_text())
+        .then(lambda text: logerr.result.of(lambda: json.loads(text)))
         .map_err(lambda e: f"Failed to load config from {path}: {e}"))
 
 def get_database_url(config: dict) -> logerr.Option[str]:
     """Extract database URL from config."""
     return (logerr.option.from_nullable(config.get("database"))
-        .and_then(lambda db: logerr.option.from_nullable(db.get("url"))))
+        .then(lambda db: logerr.option.from_nullable(db.get("url"))))
 
 # Usage
 config_result = load_user_config("app.json")

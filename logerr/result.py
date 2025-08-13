@@ -1,7 +1,7 @@
 """
 Result type implementation with automatic logging integration.
 
-Provides Rust-like Result<T, E> types with automatic logging of error cases
+Provides Rust-like Result<T, E> types with automatic logging from error cases
 through loguru, configurable via confection.
 """
 
@@ -29,8 +29,8 @@ class Result[T, E](ABC):
     it's automatically logged using loguru with configurable log levels and formats.
 
     Type Parameters:
-        T: The type of the success value
-        E: The type of the error value
+        T: The type from the success value
+        E: The type from the error value
 
     Examples:
         Basic usage:
@@ -175,7 +175,7 @@ class Result[T, E](ABC):
         pass
 
     @abstractmethod
-    def and_then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+    def then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         """Chain Result-returning operations (also known as flatmap).
 
         Args:
@@ -189,9 +189,9 @@ class Result[T, E](ABC):
             ...     if x == 0:
             ...         return Err("division by zero")
             ...     return Ok(10.0 / x)
-            >>> Ok(2).and_then(divide)
+            >>> Ok(2).then(divide)
             Ok(5.0)
-            >>> Ok(0).and_then(divide)
+            >>> Ok(0).then(divide)
             Err('division by zero')
         """
         pass
@@ -214,38 +214,19 @@ class Result[T, E](ABC):
             >>> Err("retry needed").or_else(retry)
             Ok(99)
 
-            For simple defaults, consider using or_default():
-            >>> Err("failed").or_default(42)
-            Ok(42)
-        """
-        pass
-
-    @abstractmethod
-    def or_default(self, default: T) -> Result[T, E]:
-        """Return Ok(default) if this is Err, otherwise return this Ok.
-
-        This is a convenience method equivalent to `or_else(lambda _: Ok(default))`.
-
-        Args:
-            default: The default value to wrap in Ok if this is Err.
-
-        Returns:
-            The original Ok if this is Ok, otherwise Ok(default).
-
-        Examples:
-            >>> Ok(42).or_default(99)
-            Ok(42)
-            >>> Err("failed").or_default(99)
-            Ok(99)
+            For simple defaults, consider using unwrap_or():
+            >>> Err("failed").unwrap_or(42)
+            42
         """
         pass
 
     @classmethod
-    def from_callable(cls, f: Callable[[], T]) -> Result[T, Exception]:
+    def of(cls, f: Callable[[], T]) -> Result[T, Exception]:
         """Create a Result from a callable that might raise an exception."""
-        from . import result as result_module
-
-        return result_module.from_callable(f)
+        try:
+            return Ok(f())
+        except Exception as e:
+            return Err.from_exception(e)
 
     @classmethod
     def from_optional(cls, value: T | None, error: E) -> Result[T, E]:
@@ -267,7 +248,7 @@ class Result[T, E](ABC):
 class Ok(Result[T, E]):
     """Represents a successful result containing a value.
 
-    Ok is the success variant of Result<T, E>. It wraps a value of type T
+    Ok is the success variant from Result<T, E>. It wraps a value from type T
     and provides methods to safely access and transform it.
 
     Args:
@@ -331,16 +312,13 @@ class Ok(Result[T, E]):
     def map_err(self, f: Callable[[E], U]) -> Result[T, U]:
         return Ok(self._value)
 
-    def and_then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+    def then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         try:
             return f(self._value)
         except Exception as e:
             return Err(e)  # type: ignore
 
     def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
-        return Ok(self._value)
-
-    def or_default(self, default: T) -> Result[T, E]:
         return Ok(self._value)
 
     def __repr__(self) -> str:
@@ -384,7 +362,7 @@ class Ok(Result[T, E]):
 class Err(Result[T, E]):
     """Represents a failed result containing an error.
 
-    Err is the failure variant of Result<T, E>. It wraps an error value of type E
+    Err is the failure variant from Result<T, E>. It wraps an error value from type E
     and automatically logs the error when created (unless logging is disabled).
 
     Args:
@@ -538,7 +516,7 @@ class Err(Result[T, E]):
         except Exception as e:
             return Err(e)  # type: ignore
 
-    def and_then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+    def then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         return Err(self._error, _skip_logging=True)
 
     def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
@@ -546,9 +524,6 @@ class Err(Result[T, E]):
             return f(self._error)
         except Exception as e:
             return Err(e)  # type: ignore
-
-    def or_default(self, default: T) -> Result[T, E]:
-        return Ok(default)
 
     def __repr__(self) -> str:
         return f"Err({self._error!r})"
@@ -589,26 +564,26 @@ class Err(Result[T, E]):
 
 
 # Factory functions for creating Results
-def from_callable[T](f: Callable[[], T]) -> Result[T, Exception]:
+def of[T](f: Callable[[], T]) -> Result[T, Exception]:
     """Execute a callable and return Ok(result) or Err(exception).
 
     This function safely executes a callable that might raise an exception,
     capturing any exceptions and converting them to Err results with automatic logging.
 
     Args:
-        f: A callable that returns a value of type T.
+        f: A callable that returns a value from type T.
 
     Returns:
         Ok(result) if the callable succeeds, Err(exception) if it raises.
 
     Examples:
         Successful execution:
-        >>> result = from_callable(lambda: 42)
+        >>> result = of(lambda: 42)
         >>> result.unwrap()
         42
 
         Handling exceptions:
-        >>> result = from_callable(lambda: 1 / 0)
+        >>> result = of(lambda: 1 / 0)
         >>> result.is_err()
         True
         >>> result.unwrap_or(0)
@@ -616,7 +591,7 @@ def from_callable[T](f: Callable[[], T]) -> Result[T, Exception]:
 
         With more complex operations:
         >>> import json
-        >>> result = from_callable(lambda: json.loads('{"key": "value"}'))
+        >>> result = of(lambda: json.loads('{"key": "value"}'))
         >>> result.map(lambda d: d["key"]).unwrap_or("not found")
         'value'
     """
@@ -709,7 +684,7 @@ def predicate_validator[T, E](
 ) -> Callable[[T], Result[T, E]]:
     """Create a reusable predicate validator function.
 
-    This function returns a curried version of from_predicate, allowing you to
+    This function returns a curried version from from_predicate, allowing you to
     create reusable validation functions that return Results.
 
     Args:
@@ -729,7 +704,7 @@ def predicate_validator[T, E](
 
         Use with method chaining:
         >>> email_validator = predicate_validator(lambda s: "@" in s, "invalid email format")
-        >>> Ok("user@example.com").and_then(email_validator).is_ok()
+        >>> Ok("user@example.com").then(email_validator).is_ok()
         True
     """
 

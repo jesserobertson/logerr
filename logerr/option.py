@@ -1,7 +1,7 @@
 """
 Option type implementation with automatic logging integration.
 
-Provides Rust-like Option<T> types with automatic logging of None cases
+Provides Rust-like Option<T> types with automatic logging from None cases
 through loguru, configurable via confection.
 """
 
@@ -29,7 +29,7 @@ class Option[T](ABC):
     with configurable log levels and formats.
 
     Type Parameters:
-        T: The type of the contained value
+        T: The type from the contained value
 
     Examples:
         Basic usage:
@@ -156,7 +156,7 @@ class Option[T](ABC):
         pass
 
     @abstractmethod
-    def and_then(self, f: Callable[[T], Option[U]]) -> Option[U]:
+    def then(self, f: Callable[[T], Option[U]]) -> Option[U]:
         """Chain Option-returning operations (also known as flatmap).
 
         Args:
@@ -170,9 +170,9 @@ class Option[T](ABC):
             ...     if x == 0:
             ...         return Nothing.from_filter("division by zero")
             ...     return Some(10.0 / x)
-            >>> Some(2).and_then(safe_divide)
+            >>> Some(2).then(safe_divide)
             Some(5.0)
-            >>> Some(0).and_then(safe_divide)  # doctest: +ELLIPSIS
+            >>> Some(0).then(safe_divide)  # doctest: +ELLIPSIS
             Nothing(...)
         """
         pass
@@ -193,7 +193,27 @@ class Option[T](ABC):
             >>> Nothing.empty().or_else(lambda: Some(99))
             Some(99)
 
-            For simple defaults, consider using or_default():
+            For simple defaults, consider using unwrap_or():
+            >>> Nothing.empty().unwrap_or(99)
+            99
+        """
+        pass
+
+    @abstractmethod
+    def or_default(self, default: T) -> Option[T]:
+        """Return Some(default) if this is Nothing, otherwise return this Some.
+
+        This is a convenience method equivalent to `or(lambda: Some(default))`.
+
+        Args:
+            default: The default value to wrap in Some if this is Nothing.
+
+        Returns:
+            The original Some if this is Some, otherwise Some(default).
+
+        Examples:
+            >>> Some(42).or_default(99)
+            Some(42)
             >>> Nothing.empty().or_default(99)
             Some(99)
         """
@@ -217,26 +237,6 @@ class Option[T](ABC):
         """
         pass
 
-    @abstractmethod
-    def or_default(self, default: T) -> Option[T]:
-        """Return Some(default) if this is Nothing, otherwise return this Some.
-
-        This is a convenience method equivalent to `or_else(lambda: Some(default))`.
-
-        Args:
-            default: The default value to wrap in Some if this is Nothing.
-
-        Returns:
-            The original Some if this is Some, otherwise Some(default).
-
-        Examples:
-            >>> Some(42).or_default(99)
-            Some(42)
-            >>> Nothing.empty().or_default(99)
-            Some(99)
-        """
-        pass
-
     @classmethod
     def from_nullable(cls, value: T | None) -> Option[T]:
         """Create an Option from a potentially None value."""
@@ -245,11 +245,16 @@ class Option[T](ABC):
         return option_module.from_nullable(value)
 
     @classmethod
-    def from_callable(cls, f: Callable[[], T | None]) -> Option[T]:
+    def of(cls, f: Callable[[], T | None]) -> Option[T]:
         """Create an Option from a callable that might return None."""
-        from . import option as option_module
-
-        return option_module.from_callable(f)
+        try:
+            result = f()
+            if result is not None:
+                return Some(result)
+            else:
+                return Nothing.from_none("Callable returned None")
+        except Exception as e:
+            return Nothing.from_exception(e)
 
     @classmethod
     def from_predicate(
@@ -270,7 +275,7 @@ class Option[T](ABC):
 class Some(Option[T]):
     """Represents an option containing a value.
 
-    Some is the "present" variant of Option<T>. It wraps a value of type T
+    Some is the "present" variant from Option<T>. It wraps a value from type T
     and provides methods to safely access and transform it.
 
     Args:
@@ -320,7 +325,7 @@ class Some(Option[T]):
         except Exception as e:
             return Nothing.from_exception(e)
 
-    def and_then(self, f: Callable[[T], Option[U]]) -> Option[U]:
+    def then(self, f: Callable[[T], Option[U]]) -> Option[U]:
         try:
             return f(self._value)
         except Exception as e:
@@ -382,11 +387,11 @@ class Some(Option[T]):
 class Nothing(Option[T]):
     """Represents an option with no value.
 
-    Nothing is the "absent" variant of Option<T>. It indicates the absence of a value
+    Nothing is the "absent" variant from Option<T>. It indicates the absence from a value
     and automatically logs the absence when created (unless logging is disabled).
 
     Args:
-        reason: Description of why the value is absent.
+        reason: Description from why the value is absent.
         _skip_logging: Internal parameter to skip automatic logging.
 
     Examples:
@@ -415,7 +420,7 @@ class Nothing(Option[T]):
         """Initialize a Nothing option with a reason.
 
         Args:
-            reason: Description of why the value is absent.
+            reason: Description from why the value is absent.
             _skip_logging: If True, skip automatic logging.
         """
         self._reason = reason
@@ -484,7 +489,7 @@ class Nothing(Option[T]):
         """Create a Nothing from a None value with automatic logging.
 
         Args:
-            reason: Description of why the None was unexpected.
+            reason: Description from why the None was unexpected.
 
         Returns:
             A Nothing with the given reason.
@@ -501,7 +506,7 @@ class Nothing(Option[T]):
         """Create a Nothing from a failed filter predicate with automatic logging.
 
         Args:
-            reason: Description of why the filter failed.
+            reason: Description from why the filter failed.
 
         Returns:
             A Nothing with the given reason.
@@ -517,7 +522,7 @@ class Nothing(Option[T]):
     def empty(cls) -> Nothing[T]:
         """Create a Nothing without logging (for normal control flow).
 
-        Use this method when the absence of a value is expected and part of
+        Use this method when the absence from a value is expected and part from
         normal program flow, so it shouldn't be logged as an error.
 
         Returns:
@@ -554,7 +559,7 @@ class Nothing(Option[T]):
     def map(self, f: Callable[[T], U]) -> Option[U]:
         return Nothing(self._reason, _skip_logging=True)
 
-    def and_then(self, f: Callable[[T], Option[U]]) -> Option[U]:
+    def then(self, f: Callable[[T], Option[U]]) -> Option[U]:
         return Nothing(self._reason, _skip_logging=True)
 
     def or_else(self, f: Callable[[], Option[T]]) -> Option[T]:
@@ -602,6 +607,52 @@ class Nothing(Option[T]):
 
 
 # Factory functions for creating Options
+def of[T](f: Callable[[], T | None]) -> Option[T]:
+    """Execute a callable and return Some(result) or Nothing.
+
+    This function safely executes a callable that might return None or raise
+    an exception, converting both cases to appropriate Option values with
+    automatic logging.
+
+    Args:
+        f: A callable that returns an optional value from type T.
+
+    Returns:
+        Some(result) if the callable succeeds and returns non-None,
+        Nothing if it returns None or raises an exception.
+
+    Examples:
+        Successful execution:
+        >>> option = of(lambda: "result")
+        >>> option.unwrap()
+        'result'
+
+        Callable returns None:
+        >>> option = of(lambda: None)
+        >>> option.unwrap_or("default")
+        'default'
+
+        Callable raises exception:
+        >>> option = of(lambda: 1 / 0)
+        >>> option.is_nothing()
+        True
+
+        With file operations:
+        >>> import os
+        >>> option = of(lambda: os.environ.get("NONEXISTENT_VAR"))
+        >>> option.unwrap_or("default_value")
+        'default_value'
+    """
+    try:
+        result = f()
+        if result is not None:
+            return Some(result)
+        else:
+            return Nothing.from_none("Callable returned None")
+    except Exception as e:
+        return Nothing.from_exception(e)
+
+
 def from_nullable[T](value: T | None) -> Option[T]:
     """Convert a nullable value to an Option.
 
@@ -635,52 +686,6 @@ def from_nullable[T](value: T | None) -> Option[T]:
         return Some(value)
     else:
         return Nothing.from_none()
-
-
-def from_callable[T](f: Callable[[], T | None]) -> Option[T]:
-    """Execute a callable and return Some(result) or Nothing.
-
-    This function safely executes a callable that might return None or raise
-    an exception, converting both cases to appropriate Option values with
-    automatic logging.
-
-    Args:
-        f: A callable that returns an optional value of type T.
-
-    Returns:
-        Some(result) if the callable succeeds and returns non-None,
-        Nothing if it returns None or raises an exception.
-
-    Examples:
-        Successful execution:
-        >>> option = from_callable(lambda: "result")
-        >>> option.unwrap()
-        'result'
-
-        Callable returns None:
-        >>> option = from_callable(lambda: None)
-        >>> option.unwrap_or("default")
-        'default'
-
-        Callable raises exception:
-        >>> option = from_callable(lambda: 1 / 0)
-        >>> option.is_nothing()
-        True
-
-        With file operations:
-        >>> import os
-        >>> option = from_callable(lambda: os.environ.get("NONEXISTENT_VAR"))
-        >>> option.unwrap_or("default_value")
-        'default_value'
-    """
-    try:
-        result = f()
-        if result is not None:
-            return Some(result)
-        else:
-            return Nothing.from_none("Callable returned None")
-    except Exception as e:
-        return Nothing.from_exception(e)
 
 
 def from_predicate(
@@ -742,7 +747,7 @@ def predicate_filter[T](
 ) -> Callable[[T], Option[T]]:
     """Create a reusable predicate filter function.
 
-    This function returns a curried version of from_predicate, allowing you to
+    This function returns a curried version from from_predicate, allowing you to
     create reusable validation functions.
 
     Args:
@@ -762,7 +767,7 @@ def predicate_filter[T](
 
         Use with method chaining:
         >>> email_validator = predicate_filter(lambda s: "@" in s, error_message="Invalid email")
-        >>> Some("user@example.com").and_then(lambda email: email_validator(email)).is_some()
+        >>> Some("user@example.com").then(lambda email: email_validator(email)).is_some()
         True
     """
 

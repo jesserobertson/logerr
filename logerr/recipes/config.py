@@ -115,9 +115,7 @@ def configure_advanced(config_dict: dict[str, Any]) -> Result[None, ValueError]:
         level,
         lambda lvl: lvl in valid_levels,
         ValueError(f"Invalid log level '{level}'. Must be one of: {valid_levels}"),
-    ).and_then(
-        lambda _: Result.from_callable(_create_and_set_config).map_err(ValueError)
-    )
+    ).then(lambda _: Result.of(_create_and_set_config).map_err(ValueError))
 
 
 def configure_from_confection(config_path: str) -> Result[None, Exception]:
@@ -150,8 +148,8 @@ def configure_from_confection(config_path: str) -> Result[None, Exception]:
             lambda path: Path(path).exists(),
             Exception(f"Config file not found: {config_path}"),
         )
-        .and_then(lambda path: Result.from_callable(lambda: Config().from_disk(path)))
-        .and_then(
+        .then(lambda path: Result.of(lambda: Config().from_disk(path)))
+        .then(
             lambda config: (
                 Option.from_nullable(config.get("logerr"))
                 .map(_safe_configure)

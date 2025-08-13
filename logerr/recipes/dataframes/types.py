@@ -9,12 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime as dt
-from typing import Any, Generic, TypeVar, get_args, get_origin
-
-T = TypeVar("T")
+from typing import Any, get_args
 
 
-class Required(Generic[T]):
+class Required[T]:
     """Marker type for required fields in schema definitions.
 
     By default, all schema fields are treated as Optional[T]. Use Required[T]
@@ -60,7 +58,10 @@ class FieldSpec:
             return cls(
                 name=field_name, field_type=type_spec.inner_type, is_required=True
             )
-        elif hasattr(type_spec, "__origin__") and get_origin(type_spec) is Required:
+        elif (
+            hasattr(type_spec, "__origin__")
+            and getattr(type_spec, "__origin__", None) is Required
+        ):
             # Handle Required[T] when used as type annotation
             inner_type = get_args(type_spec)[0]
             return cls(name=field_name, field_type=inner_type, is_required=True)
@@ -87,7 +88,10 @@ def is_valid_type_spec(type_spec: Any) -> bool:
     """Check if a type specification is valid for schema definition."""
     if isinstance(type_spec, Required):
         return True
-    if hasattr(type_spec, "__origin__") and get_origin(type_spec) is Required:
+    if (
+        hasattr(type_spec, "__origin__")
+        and getattr(type_spec, "__origin__", None) is Required
+    ):
         return True
     if isinstance(type_spec, type):
         return True

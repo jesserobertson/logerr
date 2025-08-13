@@ -69,7 +69,7 @@ class TestOptionProperties:
 
         # Identity operations
         assert option.map(lambda x: x).unwrap() == value
-        assert option.and_then(lambda x: Some(x)).unwrap() == value
+        assert option.then(lambda x: Some(x)).unwrap() == value
 
     def test_nothing_invariants(self):
         """Test basic invariants for Nothing values."""
@@ -81,7 +81,7 @@ class TestOptionProperties:
 
         # Nothing operations should remain Nothing
         assert option.map(lambda x: x * 2).is_nothing()
-        assert option.and_then(lambda x: Some(x * 2)).is_nothing()
+        assert option.then(lambda x: Some(x * 2)).is_nothing()
         assert option.filter(lambda x: True).is_nothing()
 
     @given(st.integers(), st.integers())
@@ -130,23 +130,23 @@ class TestOptionProperties:
             assert result == default
 
     @given(st.integers(), st.integers())
-    def test_and_then_properties(self, value, multiplier):
-        """Test and_then (flatMap) properties."""
+    def test_then_properties(self, value, multiplier):
+        """Test then (flatMap) properties."""
         option = Some(value)
 
-        # and_then with function that returns Some
+        # then with function that returns Some
         def f(x):
             return Some(x * multiplier)
 
-        result = option.and_then(f)
+        result = option.then(f)
         assert result.is_some()
         assert result.unwrap() == value * multiplier
 
-        # and_then with function that returns Nothing
+        # then with function that returns Nothing
         def g(x):
             return Nothing.empty()
 
-        result = option.and_then(g)
+        result = option.then(g)
         assert result.is_nothing()
 
     @given(st.text(), st.text())
@@ -208,7 +208,7 @@ class TestResultProperties:
 
         # Err operations should remain Err
         assert result.map(lambda x: x * 2).is_err()
-        assert result.and_then(lambda x: Ok(x * 2)).is_err()
+        assert result.then(lambda x: Ok(x * 2)).is_err()
 
     @given(st.integers(), st.integers())
     def test_map_error_preservation(self, value, multiplier):
@@ -230,29 +230,29 @@ class TestResultProperties:
         assert mapped_err.unwrap_err() == "error"
 
     @given(st.integers(), safe_text)
-    def test_and_then_properties(self, value, error_msg):
-        """Test and_then properties."""
+    def test_then_properties(self, value, error_msg):
+        """Test then properties."""
         ok_result = Ok(value)
         err_result = Err(error_msg)
 
-        # and_then with Ok input and Ok-returning function
+        # then with Ok input and Ok-returning function
         def f(x):
             return Ok(x * 2)
 
-        chained_ok = ok_result.and_then(f)
+        chained_ok = ok_result.then(f)
         assert chained_ok.is_ok()
         assert chained_ok.unwrap() == value * 2
 
-        # and_then with Ok input and Err-returning function
+        # then with Ok input and Err-returning function
         def g(x):
             return Err("new error")
 
-        chained_err = ok_result.and_then(g)
+        chained_err = ok_result.then(g)
         assert chained_err.is_err()
         assert chained_err.unwrap_err() == "new error"
 
-        # and_then with Err input should preserve original error
-        result = err_result.and_then(f)
+        # then with Err input should preserve original error
+        result = err_result.then(f)
         assert result.is_err()
         assert result.unwrap_err() == error_msg
 
@@ -324,8 +324,8 @@ class TestFactoryFunctionProperties:
         assert result_false.unwrap_err() == "error"
 
     @given(safe_text)
-    def test_from_callable_exception_handling(self, error_message):
-        """Test from_callable handles exceptions properly."""
+    def test_of_exception_handling(self, error_message):
+        """Test of handles exceptions properly."""
 
         def failing_function():
             raise ValueError(error_message)
@@ -334,12 +334,12 @@ class TestFactoryFunctionProperties:
             return 42
 
         # Failing callable should produce Err
-        result_fail = logerr.result.from_callable(failing_function)
+        result_fail = logerr.result.of(failing_function)
         assert result_fail.is_err()
         # Just check that it's an exception, don't assume exact type preservation
 
         # Succeeding callable should produce Ok
-        result_ok = logerr.result.from_callable(succeeding_function)
+        result_ok = logerr.result.of(succeeding_function)
         assert result_ok.is_ok()
         assert result_ok.unwrap() == 42
 
@@ -498,9 +498,9 @@ class TestRealisticScenarios:
         # Chain validations
         result = (
             Ok(input_text)
-            .and_then(validate_not_empty)
-            .and_then(validate_length)
-            .and_then(validate_no_numbers)
+            .then(validate_not_empty)
+            .then(validate_length)
+            .then(validate_no_numbers)
         )
 
         # Verify result consistency

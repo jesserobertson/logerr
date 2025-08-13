@@ -30,19 +30,19 @@ class TestOk:
         assert isinstance(mapped, Ok)
         assert mapped.unwrap() == 84
 
-    def test_ok_and_then(self):
+    def test_ok_then(self):
         result = Ok(42)
-        chained = result.and_then(lambda x: Ok(x * 2))
+        chained = result.then(lambda x: Ok(x * 2))
         assert isinstance(chained, Ok)
         assert chained.unwrap() == 84
 
-    def test_ok_and_then_exception_handling(self):
-        """Test that Ok.and_then handles exceptions in callback functions."""
+    def test_ok_then_exception_handling(self):
+        """Test that Ok.then handles exceptions in callback functions."""
 
         def failing_func(x):
             raise ValueError("test error")
 
-        result = Ok(42).and_then(failing_func)
+        result = Ok(42).then(failing_func)
         assert result.is_err()
         assert isinstance(result, Err)
 
@@ -84,13 +84,13 @@ class TestErr:
 class TestResultFactories:
     """Tests for Result factory functions."""
 
-    def test_result_from_callable_success(self):
-        result = logerr.result.from_callable(lambda: 42)
+    def test_result_of_success(self):
+        result = logerr.result.of(lambda: 42)
         assert isinstance(result, Ok)
         assert result.unwrap() == 42
 
-    def test_result_from_callable_exception(self):
-        result = logerr.result.from_callable(lambda: 1 / 0)
+    def test_result_of_exception(self):
+        result = logerr.result.of(lambda: 1 / 0)
         assert isinstance(result, Err)
         assert isinstance(result._error, ZeroDivisionError)
 
@@ -153,10 +153,7 @@ class TestChaining:
 
     def test_ok_chain(self):
         result = (
-            Ok(42)
-            .map(lambda x: x * 2)
-            .and_then(lambda x: Ok(x + 1))
-            .map(lambda x: str(x))
+            Ok(42).map(lambda x: x * 2).then(lambda x: Ok(x + 1)).map(lambda x: str(x))
         )
 
         assert isinstance(result, Ok)
@@ -166,7 +163,7 @@ class TestChaining:
         result = (
             Err("initial error")
             .map(lambda x: x * 2)  # Should not execute
-            .and_then(lambda x: Ok(x + 1))  # Should not execute
+            .then(lambda x: Ok(x + 1))  # Should not execute
             .map(lambda x: str(x))
         )  # Should not execute
 

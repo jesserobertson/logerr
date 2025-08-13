@@ -54,7 +54,7 @@ print(option.is_nothing())  # True
 print(option.unwrap_or("default"))  # "default"
 ```
 
-#### `from_callable()`
+#### `of()`
 
 Wraps a callable that might return None:
 
@@ -67,11 +67,11 @@ def find_user(user_id: int):
     return users.get(user_id)
 
 # Present value
-option = Option.from_callable(lambda: find_user(1))
+option = Option.of(lambda: find_user(1))
 print(option.unwrap())  # "Alice"
 
 # Absent value
-option = Option.from_callable(lambda: find_user(99))
+option = Option.of(lambda: find_user(99))
 print(option.is_nothing())  # True
 ```
 
@@ -183,7 +183,7 @@ option = Nothing.empty().filter(lambda x: x > 0)
 print(option.is_nothing())  # True
 ```
 
-### `and_then()` - Chain Operations
+### `then()` - Chain Operations
 
 Chain operations that return Options:
 
@@ -199,8 +199,8 @@ def get_user_name(user: dict) -> Option[str]:
 
 # Chain multiple operations
 result = (Some(1)
-    .and_then(find_user)
-    .and_then(get_user_name))
+    .then(find_user)
+    .then(get_user_name))
 
 print(result.unwrap())  # "Alice"
 ```
@@ -240,7 +240,7 @@ def is_even(n: int) -> bool:
 
 # Complex pipeline
 result = (Option.from_nullable("42")
-    .and_then(parse_int)
+    .then(parse_int)
     .filter(is_even)
     .map(lambda x: x * 2)
     .unwrap_or(0))
@@ -315,7 +315,7 @@ def safe_divide(a: int, b: int) -> Option[float]:
 # Process a list of numbers
 numbers = [1, 3, 7, 8, 9, 12]
 result = (first_even(numbers)
-    .and_then(lambda x: safe_divide(100, x))
+    .then(lambda x: safe_divide(100, x))
     .map(lambda x: round(x, 2))
     .unwrap_or(0.0))
 
@@ -342,7 +342,7 @@ class ConfigManager:
     def get_int(self, key: str) -> Option[int]:
         """Get an integer configuration value."""
         return (self.get_string(key)
-            .and_then(lambda s: Option.from_callable(lambda: int(s))))
+            .then(lambda s: Option.of(lambda: int(s))))
     
     def get_bool(self, key: str) -> Option[bool]:
         """Get a boolean configuration value."""

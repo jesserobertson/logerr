@@ -29,7 +29,7 @@ def risky_operation():
 
 # Use functional pipeline with automatic error logging
 message = (
-    Result.from_callable(risky_operation)
+    Result.of(risky_operation)
     .map(lambda value: f"Success: {value}")
     .unwrap_or("Failed: check logs for details")
 )
@@ -223,8 +223,8 @@ def load_config(path: str) -> Result[dict, str]:
     """Load and validate configuration using functional utilities."""
     return (
         execute(lambda: Path(path).read_text())
-        .and_then(lambda text: execute(lambda: json.loads(text)))
-        .and_then(validate_config)
+        .then(lambda text: execute(lambda: json.loads(text)))
+        .then(validate_config)
         .map_err(lambda e: f"Config error in {path}: {e}")
     )
 
@@ -262,9 +262,9 @@ def process_user_data(data: dict) -> Option[str]:
     """Extract and format user display name using functional utilities."""
     return (
         nullable(data.get("user"))
-        .and_then(lambda user: nullable(user.get("profile")))  
-        .and_then(lambda profile: nullable(profile.get("name")))
-        .and_then(lambda name: validate(name, lambda n: len(n.strip()) > 0, None))
+        .then(lambda user: nullable(user.get("profile")))  
+        .then(lambda profile: nullable(profile.get("name")))
+        .then(lambda name: validate(name, lambda n: len(n.strip()) > 0, None))
         .map(str.title)
         .map(lambda name: f"👋 {name}")  # Add greeting emoji
     )

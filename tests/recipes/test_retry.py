@@ -281,8 +281,8 @@ class TestRetryDecorators:
 
         @retry.on_err(stop=stop_after_attempt(2), log_attempts=False)
         def using_result_factories() -> Result[int, Exception]:
-            # Test with Result.from_callable
-            return Result.from_callable(lambda: 42)
+            # Test with Result.of
+            return Result.of(lambda: 42)
 
         result = using_result_factories()
         assert result.is_ok()
@@ -535,29 +535,41 @@ class TestResultRetryMethod:
 class TestLogging:
     """Test retry logging functionality."""
 
-    @patch("logerr.recipes.retry.logger")
-    def test_retry_logging_enabled(self, mock_logger):
+    def test_retry_logging_enabled(self):
         """Test that retry attempts are logged when enabled."""
-        call_count = 0
+        import io
 
-        @retry.on_err(
-            stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=True
-        )
-        def logged_operation() -> Result[int, str]:
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return Err("first failure")
-            return Ok(42)
+        from loguru import logger
 
-        result = logged_operation()
+        # Capture log output
+        log_stream = io.StringIO()
+        handler_id = logger.add(log_stream, level="DEBUG", format="{level} | {message}")
 
-        assert result.is_ok()
-        assert result.unwrap() == 42
+        try:
+            call_count = 0
 
-        # Check that debug logs were called
-        assert mock_logger.debug.call_count >= 2  # At least start and attempt logs
-        assert mock_logger.info.called  # Success after retry
+            @retry.on_err(
+                stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=True
+            )
+            def logged_operation() -> Result[int, str]:
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    return Err("first failure")
+                return Ok(42)
+
+            result = logged_operation()
+
+            assert result.is_ok()
+            assert result.unwrap() == 42
+
+            # Check that logs were captured
+            log_output = log_stream.getvalue()
+            assert "Starting retry operation for logged_operation" in log_output
+            assert "logged_operation succeeded after 2 attempts" in log_output
+            assert "Attempt 1 of logged_operation failed" in log_output
+        finally:
+            logger.remove(handler_id)
 
     @patch("logerr.recipes.retry.logger")
     def test_retry_logging_disabled(self, mock_logger):

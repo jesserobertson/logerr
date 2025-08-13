@@ -31,7 +31,7 @@ print(error_result.unwrap_or(0)) # 0
 
 The most common way to create Results is through factory functions:
 
-#### `from_callable()`
+#### `of()`
 
 Wraps a callable that might raise an exception:
 
@@ -39,11 +39,11 @@ Wraps a callable that might raise an exception:
 from logerr import Result
 
 # Success case
-result = Result.from_callable(lambda: int("42"))
+result = Result.of(lambda: int("42"))
 print(result.unwrap())  # 42
 
 # Error case - exception caught automatically
-result = Result.from_callable(lambda: int("not a number"))
+result = Result.of(lambda: int("not a number"))
 print(result.is_err())  # True
 print(result.unwrap_or(0))  # 0
 ```
@@ -150,7 +150,7 @@ result = Err("fail").map_err(str.upper)
 print(result.unwrap_err())  # "FAIL"
 ```
 
-### `and_then()` - Chain Operations
+### `then()` - Chain Operations
 
 Chain operations that return Results:
 
@@ -159,15 +159,15 @@ from logerr import Result, Ok
 import json
 
 def parse_json(text: str) -> Result[dict, str]:
-    return Result.from_callable(lambda: json.loads(text))
+    return Result.of(lambda: json.loads(text))
 
 def get_field(data: dict, field: str) -> Result[str, str]:
     return Result.from_optional(data.get(field), f"Missing field: {field}")
 
 # Chain multiple operations
 result = (Ok('{"name": "Alice", "age": 30}')
-    .and_then(parse_json)
-    .and_then(lambda data: get_field(data, "name")))
+    .then(parse_json)
+    .then(lambda data: get_field(data, "name")))
 
 print(result.unwrap())  # "Alice"
 ```
@@ -200,15 +200,15 @@ from pathlib import Path
 
 def load_config(path: str) -> Result[dict, str]:
     """Load and parse configuration file."""
-    return (Result.from_callable(lambda: Path(path).read_text())
+    return (Result.of(lambda: Path(path).read_text())
         .map_err(lambda e: f"Failed to read {path}: {e}")
-        .and_then(lambda text: Result.from_callable(lambda: json.loads(text)))
+        .then(lambda text: Result.of(lambda: json.loads(text)))
         .map_err(lambda e: f"Failed to parse JSON: {e}"))
 
 def get_database_config(config: dict) -> Result[str, str]:
     """Extract database URL from config."""
     return (Result.from_optional(config.get("database"), "No database config")
-        .and_then(lambda db: Result.from_optional(db.get("url"), "No database URL")))
+        .then(lambda db: Result.from_optional(db.get("url"), "No database URL")))
 
 # Usage
 config_result = load_config("app.json")
@@ -275,11 +275,11 @@ from typing import Dict, List
 
 def read_file(path: str) -> Result[str, str]:
     """Read file contents."""
-    return Result.from_callable(lambda: Path(path).read_text())
+    return Result.of(lambda: Path(path).read_text())
 
 def parse_json(content: str) -> Result[dict, str]:
     """Parse JSON content."""
-    return Result.from_callable(lambda: json.loads(content))
+    return Result.of(lambda: json.loads(content))
 
 def validate_config(config: dict) -> Result[dict, str]:
     """Validate configuration has required fields."""
@@ -292,8 +292,8 @@ def validate_config(config: dict) -> Result[dict, str]:
 def process_config_file(path: str) -> Result[dict, str]:
     """Complete config file processing pipeline."""
     return (read_file(path)
-        .and_then(parse_json)
-        .and_then(validate_config))
+        .then(parse_json)
+        .then(validate_config))
 
 # Usage
 result = process_config_file("config.json")

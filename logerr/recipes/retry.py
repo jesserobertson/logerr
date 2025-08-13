@@ -58,15 +58,15 @@ def on_err(
 
             # Use functional API for parameter defaults
 
-            actual_stop = Option.from_nullable(stop).unwrap_or(stop_after_attempt(3))
-            actual_wait = Option.from_nullable(wait).unwrap_or(
-                wait_exponential(multiplier=1, min=4, max=10)
+            actual_stop = Option.from_nullable(stop).unwrap_or_else(
+                lambda: stop_after_attempt(3)
+            )
+            actual_wait = Option.from_nullable(wait).unwrap_or_else(
+                lambda: wait_exponential(multiplier=1, min=4, max=10)
             )
 
             if log_attempts:
-                func_name = Option.from_callable(lambda: func.__name__).unwrap_or(
-                    "callable"
-                )
+                func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
                 logger.debug(f"Starting retry operation for {func_name}")
 
             try:
@@ -144,15 +144,15 @@ def on_err_type(
 
             # Use functional API for parameter defaults
 
-            actual_stop = Option.from_nullable(stop).unwrap_or(stop_after_attempt(3))
-            actual_wait = Option.from_nullable(wait).unwrap_or(
-                wait_exponential(multiplier=1, min=4, max=10)
+            actual_stop = Option.from_nullable(stop).unwrap_or_else(
+                lambda: stop_after_attempt(3)
+            )
+            actual_wait = Option.from_nullable(wait).unwrap_or_else(
+                lambda: wait_exponential(multiplier=1, min=4, max=10)
             )
 
             if log_attempts:
-                func_name = Option.from_callable(lambda: func.__name__).unwrap_or(
-                    "callable"
-                )
+                func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
                 logger.debug(
                     f"Starting retry operation for {func_name} (retrying on: {error_types})"
                 )
@@ -244,7 +244,7 @@ def with_retry[T](
     last_exception: Exception | None = None
 
     if log_attempts:
-        func_name = Option.from_callable(lambda: func.__name__).unwrap_or("callable")
+        func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
         logger.debug(f"Starting retry execution of {func_name}")
 
     try:
@@ -315,7 +315,7 @@ def until_ok[T, E](
     last_result: Result[T, E] | None = None
 
     if log_attempts:
-        func_name = Option.from_callable(lambda: func.__name__).unwrap_or("callable")
+        func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
         logger.debug(f"Starting retry execution of {func_name}")
 
     try:
@@ -329,9 +329,9 @@ def until_ok[T, E](
 
                 if result.is_ok():
                     if log_attempts and attempt_count > 1:
-                        func_name = Option.from_callable(
-                            lambda: func.__name__
-                        ).unwrap_or("callable")
+                        func_name = Option.of(lambda: func.__name__).unwrap_or(
+                            "callable"
+                        )
                         logger.info(
                             f"{func_name} succeeded after {attempt_count} attempts"
                         )
@@ -355,9 +355,7 @@ def until_ok[T, E](
 
     except RetryError:
         if log_attempts:
-            func_name = Option.from_callable(lambda: func.__name__).unwrap_or(
-                "callable"
-            )
+            func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
             logger.warning(f"{func_name} failed after {attempt_count} attempts")
 
         return last_result or Err.from_value("All retry attempts failed")  # type: ignore
