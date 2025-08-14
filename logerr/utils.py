@@ -48,19 +48,21 @@ def execute[T](
 
     try:
         result = f()
-        if on_exception == "option":
-            return (
-                Some(result)
-                if result is not None
-                else Nothing.from_none("Callable returned None")
-            )
-        else:
-            return Ok(result)
+        match on_exception:
+            case "option":
+                return (
+                    Some(result)
+                    if result is not None
+                    else Nothing.from_none("Callable returned None")
+                )
+            case "result":
+                return Ok(result)
     except Exception as e:
-        if on_exception == "option":
-            return Nothing.from_exception(e)
-        else:
-            return Err.from_exception(default_error or e)
+        match on_exception:
+            case "option":
+                return Nothing.from_exception(e)
+            case "result":
+                return Err.from_exception(default_error or e)
 
 
 def nullable[T](
@@ -93,23 +95,29 @@ def nullable[T](
     """
 
     if value is not None:
-        return Some(value) if return_type == "option" else Ok(value)
+        match return_type:
+            case "option":
+                return Some(value)
+            case "result":
+                return Ok(value)
 
     # Handle None case
-    if return_type == "option":
-        reason = "Value was None"
-        if log_absence:
-            return Nothing.from_none(reason)
-        else:
-            return Nothing(reason, _skip_logging=True)
-    else:
-        if error_factory is None:
-            error = ValueError("Value was None")
-        elif callable(error_factory):
-            error = error_factory()  # type: ignore
-        else:
-            error = error_factory  # type: ignore
-        return Err.from_value(error)
+    match return_type:
+        case "option":
+            reason = "Value was None"
+            if log_absence:
+                return Nothing.from_none(reason)
+            else:
+                return Nothing(reason, _skip_logging=True)
+        case "result":
+            match error_factory:
+                case None:
+                    error = ValueError("Value was None")
+                case _ if callable(error_factory):
+                    error = error_factory()  # type: ignore
+                case _:
+                    error = error_factory  # type: ignore
+            return Err.from_value(error)
 
 
 def log(

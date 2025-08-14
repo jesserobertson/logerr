@@ -139,7 +139,7 @@ class Result[T, E](ABC):
         pass
 
     @abstractmethod
-    def map(self, f: Callable[[T], U]) -> Result[U, E]:
+    def map[U](self, f: Callable[[T], U]) -> Result[U, E]:
         """Transform the success value if present.
 
         Args:
@@ -157,7 +157,7 @@ class Result[T, E](ABC):
         pass
 
     @abstractmethod
-    def map_err(self, f: Callable[[E], U]) -> Result[T, U]:
+    def map_err[U](self, f: Callable[[E], U]) -> Result[T, U]:
         """Transform the error value if present.
 
         Args:
@@ -175,7 +175,7 @@ class Result[T, E](ABC):
         pass
 
     @abstractmethod
-    def then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+    def then[U](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         """Chain Result-returning operations (also known as flatmap).
 
         Args:
@@ -197,7 +197,7 @@ class Result[T, E](ABC):
         pass
 
     @abstractmethod
-    def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
+    def or_else[U](self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
         """Chain Result-returning operations on the error case.
 
         Args:
@@ -245,7 +245,7 @@ class Result[T, E](ABC):
         return result_module.from_predicate(value, predicate, error)
 
 
-class Ok(Result[T, E]):
+class Ok[T, E](Result[T, E]):
     """Represents a successful result containing a value.
 
     Ok is the success variant from Result<T, E>. It wraps a value from type T
@@ -265,6 +265,8 @@ class Ok(Result[T, E]):
         >>> Ok("hello").map(str.upper).map(len)
         Ok(5)
     """
+
+    __match_args__ = ("_value",)
 
     def __init__(self, value: T) -> None:
         """Initialize an Ok result with a value.
@@ -303,22 +305,22 @@ class Ok(Result[T, E]):
     def unwrap_or_else(self, f: Callable[[E], T]) -> T:
         return self._value
 
-    def map(self, f: Callable[[T], U]) -> Result[U, E]:
+    def map[U](self, f: Callable[[T], U]) -> Result[U, E]:
         try:
             return Ok(f(self._value))
         except Exception as e:
             return Err(e)  # type: ignore
 
-    def map_err(self, f: Callable[[E], U]) -> Result[T, U]:
+    def map_err[U](self, f: Callable[[E], U]) -> Result[T, U]:
         return Ok(self._value)
 
-    def then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+    def then[U](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         try:
             return f(self._value)
         except Exception as e:
             return Err(e)  # type: ignore
 
-    def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
+    def or_else[U](self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
         return Ok(self._value)
 
     def __repr__(self) -> str:
@@ -331,35 +333,39 @@ class Ok(Result[T, E]):
         return not self.__eq__(other)
 
     def __lt__(self, other: object) -> bool:
-        if isinstance(other, Ok):
-            try:
-                result = self._value < other._value
-                return bool(result)
-            except TypeError:
+        match other:
+            case Ok(other_value):
+                try:
+                    result = self._value < other_value
+                    return bool(result)
+                except TypeError:
+                    return NotImplemented
+            case Err():
+                return False  # Ok is always greater than Err
+            case _:
                 return NotImplemented
-        elif isinstance(other, Err):
-            return False  # Ok is always greater than Err
-        return NotImplemented
 
     def __le__(self, other: object) -> bool:
         return self.__eq__(other) or self.__lt__(other)
 
     def __gt__(self, other: object) -> bool:
-        if isinstance(other, Ok):
-            try:
-                result = self._value > other._value
-                return bool(result)
-            except TypeError:
+        match other:
+            case Ok(other_value):
+                try:
+                    result = self._value > other_value
+                    return bool(result)
+                except TypeError:
+                    return NotImplemented
+            case Err():
+                return True  # Ok is always greater than Err
+            case _:
                 return NotImplemented
-        elif isinstance(other, Err):
-            return True  # Ok is always greater than Err
-        return NotImplemented
 
     def __ge__(self, other: object) -> bool:
         return self.__eq__(other) or self.__gt__(other)
 
 
-class Err(Result[T, E]):
+class Err[T, E](Result[T, E]):
     """Represents a failed result containing an error.
 
     Err is the failure variant from Result<T, E>. It wraps an error value from type E
@@ -388,6 +394,8 @@ class Err(Result[T, E]):
         >>> result.is_err()
         True
     """
+
+    __match_args__ = ("_error",)
 
     def __init__(self, error: E, *, _skip_logging: bool = False) -> None:
         """Initialize an Err result with an error value.
@@ -479,10 +487,11 @@ class Err(Result[T, E]):
         return True
 
     def unwrap(self) -> T:
-        if isinstance(self._error, Exception):
-            raise self._error
-        else:
-            raise RuntimeError(f"Called unwrap on Err: {self._error}")
+        match self._error:
+            case Exception() as e:
+                raise e
+            case _:
+                raise RuntimeError(f"Called unwrap on Err: {self._error}")
 
     def unwrap_err(self) -> E:
         """Extract the error value from this Err.
@@ -507,19 +516,19 @@ class Err(Result[T, E]):
             # If the unwrap_or_else function fails, we need to raise an error
             raise RuntimeError(f"unwrap_or_else function failed: {e}") from e
 
-    def map(self, f: Callable[[T], U]) -> Result[U, E]:
+    def map[U](self, f: Callable[[T], U]) -> Result[U, E]:
         return Err(self._error, _skip_logging=True)
 
-    def map_err(self, f: Callable[[E], U]) -> Result[T, U]:
+    def map_err[U](self, f: Callable[[E], U]) -> Result[T, U]:
         try:
             return Err(f(self._error))
         except Exception as e:
             return Err(e)  # type: ignore
 
-    def then(self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+    def then[U](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         return Err(self._error, _skip_logging=True)
 
-    def or_else(self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
+    def or_else[U](self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
         try:
             return f(self._error)
         except Exception as e:
@@ -535,29 +544,33 @@ class Err(Result[T, E]):
         return not self.__eq__(other)
 
     def __lt__(self, other: object) -> bool:
-        if isinstance(other, Err):
-            try:
-                result = self._error < other._error
-                return bool(result)
-            except TypeError:
+        match other:
+            case Err(other_error):
+                try:
+                    result = self._error < other_error
+                    return bool(result)
+                except TypeError:
+                    return NotImplemented
+            case Ok():
+                return True  # Err is always less than Ok
+            case _:
                 return NotImplemented
-        elif isinstance(other, Ok):
-            return True  # Err is always less than Ok
-        return NotImplemented
 
     def __le__(self, other: object) -> bool:
         return self.__eq__(other) or self.__lt__(other)
 
     def __gt__(self, other: object) -> bool:
-        if isinstance(other, Err):
-            try:
-                result = self._error > other._error
-                return bool(result)
-            except TypeError:
+        match other:
+            case Err(other_error):
+                try:
+                    result = self._error > other_error
+                    return bool(result)
+                except TypeError:
+                    return NotImplemented
+            case Ok():
+                return False  # Err is never greater than Ok
+            case _:
                 return NotImplemented
-        elif isinstance(other, Ok):
-            return False  # Err is never greater than Ok
-        return NotImplemented
 
     def __ge__(self, other: object) -> bool:
         return self.__eq__(other) or self.__gt__(other)

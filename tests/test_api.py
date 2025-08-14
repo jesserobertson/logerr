@@ -135,3 +135,67 @@ class TestAPIDocumentation:
         )
 
         assert result == 84
+
+    def test_match_statements_with_results(self):
+        """Test demonstrating match statement usage with Results (Python 3.12+)."""
+        ok_result = Ok(42)
+        err_result = Err("failed")
+
+        # Match statements provide clean pattern matching
+        match ok_result:
+            case Ok(value):
+                assert value == 42
+            case Err(_):
+                raise AssertionError("Should not match Err")
+
+        match err_result:
+            case Ok(_):
+                raise AssertionError("Should not match Ok")
+            case Err(error):
+                assert error == "failed"
+
+        # More complex example with processing
+        def process_result_match(result):
+            match result:
+                case Ok(value) if value > 0:
+                    return f"Positive: {value}"
+                case Ok(value):
+                    return f"Zero or negative: {value}"
+                case Err(error):
+                    return f"Error: {error}"
+
+        assert process_result_match(Ok(42)) == "Positive: 42"
+        assert process_result_match(Ok(-5)) == "Zero or negative: -5"
+        assert process_result_match(Err("bad")) == "Error: bad"
+
+    def test_match_statements_with_options(self):
+        """Test demonstrating match statement usage with Options (Python 3.12+)."""
+        some_option = Some("hello")
+        nothing_option = Nothing.empty()
+
+        # Match statements with Options
+        match some_option:
+            case Some(value):
+                assert value == "hello"
+            case Nothing():
+                raise AssertionError("Should not match Nothing")
+
+        match nothing_option:
+            case Some(_):
+                raise AssertionError("Should not match Some")
+            case Nothing():
+                pass  # Expected
+
+        # Processing example with guards
+        def process_option_match(option):
+            match option:
+                case Some(value) if len(value) > 5:
+                    return f"Long: {value}"
+                case Some(value):
+                    return f"Short: {value}"
+                case Nothing():
+                    return "Empty"
+
+        assert process_option_match(Some("hello world")) == "Long: hello world"
+        assert process_option_match(Some("hi")) == "Short: hi"
+        assert process_option_match(Nothing.empty()) == "Empty"

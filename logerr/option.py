@@ -138,7 +138,7 @@ class Option[T](ABC):
         pass
 
     @abstractmethod
-    def map(self, f: Callable[[T], U]) -> Option[U]:
+    def map[U](self, f: Callable[[T], U]) -> Option[U]:
         """Transform the contained value if present.
 
         Args:
@@ -156,7 +156,7 @@ class Option[T](ABC):
         pass
 
     @abstractmethod
-    def then(self, f: Callable[[T], Option[U]]) -> Option[U]:
+    def then[U](self, f: Callable[[T], Option[U]]) -> Option[U]:
         """Chain Option-returning operations (also known as flatmap).
 
         Args:
@@ -272,7 +272,7 @@ class Option[T](ABC):
         )
 
 
-class Some(Option[T]):
+class Some[T](Option[T]):
     """Represents an option containing a value.
 
     Some is the "present" variant from Option<T>. It wraps a value from type T
@@ -292,6 +292,8 @@ class Some(Option[T]):
         >>> Some("hello").map(str.upper).map(len)
         Some(5)
     """
+
+    __match_args__ = ("_value",)
 
     def __init__(self, value: T) -> None:
         """Initialize a Some option with a value.
@@ -316,7 +318,7 @@ class Some(Option[T]):
     def unwrap_or_else(self, f: Callable[[], T]) -> T:
         return self._value
 
-    def map(self, f: Callable[[T], U]) -> Option[U]:
+    def map[U](self, f: Callable[[T], U]) -> Option[U]:
         try:
             result = f(self._value)
             if result is None:
@@ -325,7 +327,7 @@ class Some(Option[T]):
         except Exception as e:
             return Nothing.from_exception(e)
 
-    def then(self, f: Callable[[T], Option[U]]) -> Option[U]:
+    def then[U](self, f: Callable[[T], Option[U]]) -> Option[U]:
         try:
             return f(self._value)
         except Exception as e:
@@ -356,35 +358,39 @@ class Some(Option[T]):
         return not self.__eq__(other)
 
     def __lt__(self, other: object) -> bool:
-        if isinstance(other, Some):
-            try:
-                result = self._value < other._value
-                return bool(result)
-            except TypeError:
+        match other:
+            case Some(other_value):
+                try:
+                    result = self._value < other_value
+                    return bool(result)
+                except TypeError:
+                    return NotImplemented
+            case Nothing():
+                return False  # Some is always greater than Nothing
+            case _:
                 return NotImplemented
-        elif isinstance(other, Nothing):
-            return False  # Some is always greater than Nothing
-        return NotImplemented
 
     def __le__(self, other: object) -> bool:
         return self.__eq__(other) or self.__lt__(other)
 
     def __gt__(self, other: object) -> bool:
-        if isinstance(other, Some):
-            try:
-                result = self._value > other._value
-                return bool(result)
-            except TypeError:
+        match other:
+            case Some(other_value):
+                try:
+                    result = self._value > other_value
+                    return bool(result)
+                except TypeError:
+                    return NotImplemented
+            case Nothing():
+                return True  # Some is always greater than Nothing
+            case _:
                 return NotImplemented
-        elif isinstance(other, Nothing):
-            return True  # Some is always greater than Nothing
-        return NotImplemented
 
     def __ge__(self, other: object) -> bool:
         return self.__eq__(other) or self.__gt__(other)
 
 
-class Nothing(Option[T]):
+class Nothing[T](Option[T]):
     """Represents an option with no value.
 
     Nothing is the "absent" variant from Option<T>. It indicates the absence from a value
@@ -413,6 +419,8 @@ class Nothing(Option[T]):
         >>> Nothing.empty()  # No logging
         Nothing('Empty option')
     """
+
+    __match_args__ = ("_reason",)
 
     def __init__(
         self, reason: str = "No value", *, _skip_logging: bool = False
@@ -556,10 +564,10 @@ class Nothing(Option[T]):
             # If the unwrap_or_else function fails, we need to raise an error
             raise ValueError(f"unwrap_or_else function failed: {e}") from e
 
-    def map(self, f: Callable[[T], U]) -> Option[U]:
+    def map[U](self, f: Callable[[T], U]) -> Option[U]:
         return Nothing(self._reason, _skip_logging=True)
 
-    def then(self, f: Callable[[T], Option[U]]) -> Option[U]:
+    def then[U](self, f: Callable[[T], Option[U]]) -> Option[U]:
         return Nothing(self._reason, _skip_logging=True)
 
     def or_else(self, f: Callable[[], Option[T]]) -> Option[T]:
@@ -584,26 +592,34 @@ class Nothing(Option[T]):
         return not self.__eq__(other)
 
     def __lt__(self, other: object) -> bool:
-        if isinstance(other, Some):
-            return True  # Nothing is always less than Some
-        elif isinstance(other, Nothing):
-            return False  # Nothing values are equal in ordering
-        return NotImplemented
+        match other:
+            case Some():
+                return True  # Nothing is always less than Some
+            case Nothing():
+                return False  # Nothing values are equal in ordering
+            case _:
+                return NotImplemented
 
     def __le__(self, other: object) -> bool:
-        if isinstance(other, Nothing):
-            return True  # Nothing values are equal in ordering
-        return self.__eq__(other) or self.__lt__(other)
+        match other:
+            case Nothing():
+                return True  # Nothing values are equal in ordering
+            case _:
+                return self.__eq__(other) or self.__lt__(other)
 
     def __gt__(self, other: object) -> bool:
-        if isinstance(other, Some | Nothing):
-            return False  # Nothing is never greater than anything
-        return NotImplemented
+        match other:
+            case Some() | Nothing():
+                return False  # Nothing is never greater than anything
+            case _:
+                return NotImplemented
 
     def __ge__(self, other: object) -> bool:
-        if isinstance(other, Nothing):
-            return True  # Nothing values are equal in ordering
-        return self.__eq__(other) or self.__gt__(other)
+        match other:
+            case Nothing():
+                return True  # Nothing values are equal in ordering
+            case _:
+                return self.__eq__(other) or self.__gt__(other)
 
 
 # Factory functions for creating Options
