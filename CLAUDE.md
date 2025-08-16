@@ -24,11 +24,43 @@ Key features:
 - `pixi shell --feature recipes` - Activate environment with recipes module (retry patterns)
 
 ### Testing and Quality
-- `pixi run -e dev test` - Run test suite
-- `pixi run -e dev test-all` - Run tests including doctests
+- `pixi run -e dev test` - Run test suite (fast tests only, excludes slow tests)
+- `pixi run -e dev test-all` - Run all tests including doctests from documentation and README
+- `pixi run -e dev pytest <args>` - Run pytest with custom arguments and flags
 - `pixi run -e dev typecheck` - Run type checking with mypy
 - `pixi run -e dev quality` - Run code quality checks (ruff lint + format check)
 - `pixi run -e dev check-all` - Run all checks (test, typecheck, quality) - **REQUIRED BEFORE COMMITS**
+
+#### Available Test Markers:
+- `unit` - Unit tests for core functionality
+- `integration` - Integration tests
+- `recipes` - Tests for recipes module functionality
+- `dataframes` - Tests for dataframes functionality (requires pandas/polars)
+- `mongo` - Tests requiring MongoDB connection
+- `slow` - Slow-running tests (excluded from default test run)
+- `network` - Tests requiring network access
+- `property` - Property-based tests using hypothesis
+
+#### Example Test Commands:
+```bash
+# Run only unit tests
+pixi run -e dev pytest tests/ -m unit --cov=logerr
+
+# Run integration and recipes tests
+pixi run -e dev pytest tests/ -m "integration or recipes" --cov=logerr
+
+# Run all except slow tests (same as default test command)
+pixi run -e dev pytest tests/ --doctest-modules logerr -m "not slow" --cov=logerr
+
+# Run everything including slow tests
+pixi run -e dev pytest tests/ --doctest-modules logerr --cov=logerr
+
+# Run specific test file
+pixi run -e dev pytest tests/test_option.py -v
+
+# Run with specific coverage report
+pixi run -e dev pytest tests/ --cov=logerr --cov-report=html -m unit
+```
 
 ### Documentation
 - `pixi run -e docs docs-serve` - Serve documentation locally

@@ -14,21 +14,27 @@ An `Option<T>` can be one of two variants:
 ### Direct Construction
 
 ```python
-from logerr import Some, Nothing
+>>> from logerr import Some, Nothing
 
-# Present value
-present = Some("hello")
-print(present.is_some())     # True
-print(present.unwrap())      # "hello"
+>>> # Present value
+>>> present = Some("hello")
+>>> present.is_some()
+True
+>>> present.unwrap()
+'hello'
 
-# Absent value - use empty() to avoid logging
-absent = Nothing.empty()
-print(absent.is_nothing())   # True
-print(absent.unwrap_or("default"))  # "default"
+>>> # Absent value - use empty() to avoid logging
+>>> absent = Nothing.empty()
+>>> absent.is_nothing()
+True
+>>> absent.unwrap_or("default")
+'default'
 
-# Absent value with automatic logging (when unexpected)
-logged_absent = Nothing("Expected value was missing")
-print(logged_absent.unwrap_or("fallback"))  # "fallback"
+>>> # Absent value with automatic logging (when unexpected)
+>>> logged_absent = Nothing("Expected value was missing")
+>>> logged_absent.unwrap_or("fallback")
+'fallback'
+
 ```
 
 ### Factory Functions

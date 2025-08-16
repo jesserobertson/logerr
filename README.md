@@ -5,7 +5,7 @@
 [![Tests](https://img.shields.io/badge/tests-162%20passed-green)](https://github.com/jesserobertson/logerr)
 [![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/jesserobertson/logerr)
 [![Type Checked](https://img.shields.io/badge/mypy-passing-blue)](https://github.com/jesserobertson/logerr)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue)](https://github.com/jesserobertson/logerr)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://github.com/jesserobertson/logerr)
 
 `logerr` brings the power of Rust's `Option<T>` and `Result<T, E>` types to Python, with automatic logging of error cases using [loguru](https://github.com/Delgan/loguru). Write clean, functional error-handling code while maintaining excellent observability.
 
@@ -21,48 +21,52 @@
 ## 🚀 Quick Start
 
 ```python
-from logerr import Result, Ok, Err, Some, Nothing
+>>> from logerr import Result, Ok, Err, Some, Nothing
 
-# Handle operations that might fail - functional pipeline style
-def risky_operation():
-    raise ConnectionError("Database connection failed")
+>>> # Simple successful case
+>>> success = Ok(42)
+>>> success.map(lambda x: x * 2).unwrap()
+84
 
-# Use functional pipeline with automatic error logging
-message = (
-    Result.of(risky_operation)
-    .map(lambda value: f"Success: {value}")
-    .unwrap_or("Failed: check logs for details")
-)
-print(message)
-# 🪵 Automatic logging output:
-# 2024-01-15 14:23:12.345 | ERROR | logerr.result:425 - Result error in risky_operation:2 - Database connection failed
+>>> # Error case with fallback
+>>> error = Err("something failed")
+>>> error.unwrap_or("default value")
+'default value'
+
+>>> # Chain operations elegantly
+>>> Ok("hello").map(str.upper).map(len).unwrap()
+5
+
 ```
 
 **✨ The key difference:** Errors are **automatically logged** with full context - no manual logging required!
 
 ```python
-from logerr import Option
+>>> from logerr import Option
 
-# Work with optional values using functional pipeline
-user_data = {"name": "Alice"}
+>>> # Work with optional values using functional pipeline
+>>> user_data = {"name": "Alice"}
 
-# Functional pipeline for nullable values
-contact = (
-    Option.from_nullable(user_data.get("email"))
-    .filter(lambda email: "@" in email)  # Validate email format
-    .unwrap_or("no-email@example.com")
-)
-# 🪵 Automatic logging output:
-# 2024-01-15 14:23:12.456 | WARNING | logerr.option:421 - Option Nothing in from_nullable:1 - Value was None
+>>> # Functional pipeline for nullable values
+>>> contact = (
+...     Option.from_nullable(user_data.get("email"))
+...     .filter(lambda email: "@" in email)  # Validate email format
+...     .unwrap_or("no-email@example.com")
+... )
+>>> print(contact)
+no-email@example.com
 
-# Chain operations elegantly with automatic error handling
-processed = (
-    Ok("hello world")
-    .map(str.upper)           # Ok("HELLO WORLD")  
-    .map(lambda s: s.split()) # Ok(["HELLO", "WORLD"])
-    .map(len)                 # Ok(2)
-    .unwrap_or(0)            # 2
-)
+>>> # Chain operations elegantly with automatic error handling
+>>> processed = (
+...     Ok("hello world")
+...     .map(str.upper)           # Ok("HELLO WORLD")  
+...     .map(lambda s: s.split()) # Ok(["HELLO", "WORLD"])
+...     .map(len)                 # Ok(2)
+...     .unwrap_or(0)            # 2
+... )
+>>> print(processed)
+2
+
 ```
 
 ## 📦 Installation
@@ -119,36 +123,37 @@ df = df_result.unwrap_or_default()
 
 **Traditional approach** (manual logging required):
 ```python
-def load_config():
-    try:
-        with open("config.json") as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error(f"Failed to load config: {e}")  # Manual logging
-        return None
+>>> import json
+>>> def load_config():
+...     try:
+...         with open("config.json") as f:
+...             return json.load(f)
+...     except Exception as e:
+...         print(f"Failed to load config: {e}")  # Manual logging
+...         return None
 
-config = load_config()
-if config is None:
-    print("Using defaults")
+>>> config = load_config()  # doctest: +SKIP
+>>> if config is None:  # doctest: +SKIP
+...     print("Using defaults")  # doctest: +SKIP
 ```
 
 **With logerr** (automatic logging + functional style):
 ```python
-from logerr import Result
-from logerr.utils import execute
-import json
+>>> from logerr import Result
+>>> from logerr.utils import execute
+>>> import json
 
-def load_config():
-    return execute(lambda: json.load(open("config.json")))
+>>> def load_config():
+...     return execute(lambda: json.load(open("config.json")))
 
-# Functional pipeline with error recovery
-config = (
-    load_config()
-    .or_default({})  # Fallback to empty config
-    .unwrap()
-)
-# 🪵 Automatically logs:
-# 2024-01-15 14:23:12.789 | ERROR | logerr.result:425 - Result error in <lambda>:1 - [Errno 2] No such file or directory: 'config.json'
+>>> # Functional pipeline with error recovery
+>>> config = (
+...     load_config()
+...     .unwrap_or({})  # Fallback to empty config
+... )
+>>> print(type(config))
+<class 'dict'>
+
 ```
 
 ### Traditional Tradeoffs vs logerr
@@ -340,11 +345,18 @@ df = (
 **Core Configuration** (simple and lightweight):
 
 ```python
-import logerr
+>>> import logerr
 
-# Basic configuration - just the essentials
-logerr.configure(enabled=True, level="WARNING")
-logerr.configure(level="INFO")  # Just change log level
+>>> # Basic configuration - just the essentials
+>>> result = logerr.configure(enabled=True, level="WARNING")
+>>> result.is_ok()
+True
+
+>>> # Just change log level
+>>> result = logerr.configure(level="INFO")
+>>> result.is_ok()
+True
+
 ```
 
 **Advanced Configuration** (requires recipes module):

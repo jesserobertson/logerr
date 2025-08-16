@@ -5,6 +5,8 @@ Tests for logerr.recipes.dataframes.types module.
 from datetime import datetime
 from typing import Union
 
+import pytest
+
 from logerr.recipes.dataframes.types import (
     BSON_TYPE_MAPPING,
     FieldSpec,
@@ -13,6 +15,8 @@ from logerr.recipes.dataframes.types import (
     get_polars_dtype,
     is_valid_type_spec,
 )
+
+pytestmark = [pytest.mark.recipes, pytest.mark.dataframes]
 
 
 class TestRequired:

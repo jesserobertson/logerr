@@ -28,11 +28,12 @@ pip install -e .
 ### Import the Types
 
 ```python
-# Direct imports for the main types
-from logerr import Ok, Err, Some, Nothing
+>>> # Direct imports for the main types
+>>> from logerr import Ok, Err, Some, Nothing
 
-# Import the main types
-from logerr import Result, Option
+>>> # Import the main types
+>>> from logerr import Result, Option
+
 ```
 
 ### Working with Results
@@ -40,25 +41,32 @@ from logerr import Result, Option
 Results represent operations that might succeed or fail:
 
 ```python
-from logerr import Ok, Err
+>>> from logerr import Ok, Err
 
-# Create Results directly
-success = Ok(42)
-failure = Err("something went wrong")
+>>> # Create Results directly
+>>> success = Ok(42)
+>>> failure = Err("something went wrong")
 
-# Check the state
-print(success.is_ok())    # True
-print(failure.is_err())   # True
+>>> # Check the state
+>>> success.is_ok()
+True
+>>> failure.is_err()
+True
 
-# Extract values safely
-print(success.unwrap())           # 42
-print(failure.unwrap_or(0))       # 0
+>>> # Extract values safely
+>>> success.unwrap()
+42
+>>> failure.unwrap_or(0)
+0
 
-# Chain operations
-result = (Ok(5)
-    .map(lambda x: x * 2)         # Ok(10)
-    .map(str)                     # Ok("10")
-    .unwrap_or("failed"))         # "10"
+>>> # Chain operations
+>>> result = (Ok(5)
+...     .map(lambda x: x * 2)         # Ok(10)
+...     .map(str)                     # Ok("10")
+...     .unwrap_or("failed"))         # "10"
+>>> result
+'10'
+
 ```
 
 ### Working with Options
@@ -66,19 +74,25 @@ result = (Ok(5)
 Options represent values that might be present or absent:
 
 ```python
-from logerr import Some, Nothing
+>>> from logerr import Some, Nothing
 
-# Create Options directly
-present = Some("hello")
-absent = Nothing.empty()  # Use .empty() to avoid logging
+>>> # Create Options directly
+>>> present = Some("hello")
+>>> absent = Nothing.empty()  # Use .empty() to avoid logging
 
-# Check the state
-print(present.is_some())   # True
-print(absent.is_nothing()) # True
+>>> # Check the state
+>>> present.is_some()
+True
+>>> absent.is_nothing()
+True
 
-# Extract values safely
-print(present.unwrap())            # "hello"
-print(absent.unwrap_or("default")) # "default"
+>>> # Extract values safely
+>>> present.unwrap()
+'hello'
+>>> absent.unwrap_or("default")
+'default'
+
+```
 
 # Chain operations
 result = (Some("hello world")

@@ -23,8 +23,9 @@ twine = ">=6.1.0,<7"
 tenacity = ">=9.1.2,<10"
 
 [feature.dev.tasks]
-test = "pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term"
-test-all = "pytest tests/ --doctest-modules logerr"
+test = "PYTHONPATH=. pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term -m 'not slow'"
+test-all = "PYTHONPATH=. pytest tests/ docs/ README.md --doctest-modules logerr --doctest-glob='*.md' --cov=logerr --cov-report=term"
+pytest = "PYTHONPATH=. pytest"
 typecheck = "mypy logerr"
 quality = "ruff check logerr tests && ruff format --check logerr tests"
 clean = "rm -rf htmlcov/ site/ .coverage .pytest_cache/ **/__pycache__/ **/*.pyc .mypy_cache/ .hypothesis/"

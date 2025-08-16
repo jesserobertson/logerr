@@ -7,19 +7,23 @@
 ### Basic Configuration
 
 ```python
-import logerr
+>>> import logerr
 
-# Configure global logging level
-logerr.configure({"level": "WARNING"})
+>>> # Configure global logging level  
+>>> result = logerr.configure(level="WARNING")
+>>> result.is_ok()
+True
 
-# Disable logging entirely
-logerr.configure({"enabled": False})
+>>> # Disable logging entirely
+>>> result = logerr.configure(enabled=False)  
+>>> result.is_ok()
+True
 
-# Enable more detailed context capture
-logerr.configure({
-    "capture_locals": True,
-    "capture_function_name": True
-})
+>>> # Re-enable for other examples
+>>> result = logerr.configure(enabled=True)
+>>> result.is_ok()
+True
+
 ```
 
 ### Per-Library Configuration

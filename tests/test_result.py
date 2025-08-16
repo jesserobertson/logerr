@@ -10,6 +10,8 @@ from loguru import logger
 import logerr
 from logerr import Err, Ok, configure
 
+pytestmark = pytest.mark.unit
+
 
 class TestOk:
     """Tests for Ok class."""

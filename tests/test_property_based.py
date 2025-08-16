@@ -8,6 +8,8 @@ from hypothesis.strategies import composite
 import logerr
 from logerr import Err, Nothing, Ok, Result, Some
 
+pytestmark = [pytest.mark.property, pytest.mark.slow]
+
 # Configure logging to avoid issues with complex strings
 logerr.configure({"level": "CRITICAL"})
 

@@ -14,17 +14,22 @@ A `Result<T, E>` can be one of two variants:
 ### Direct Construction
 
 ```python
-from logerr import Ok, Err
+>>> from logerr import Ok, Err
 
-# Success case
-success_result = Ok(42)
-print(success_result.is_ok())    # True
-print(success_result.unwrap())   # 42
+>>> # Success case
+>>> success_result = Ok(42)
+>>> success_result.is_ok()
+True
+>>> success_result.unwrap()
+42
 
-# Error case - automatically logged
-error_result = Err("Database connection failed")
-print(error_result.is_err())     # True
-print(error_result.unwrap_or(0)) # 0
+>>> # Error case - automatically logged
+>>> error_result = Err("Database connection failed")
+>>> error_result.is_err()
+True
+>>> error_result.unwrap_or(0)
+0
+
 ```
 
 ### Factory Functions
@@ -36,16 +41,20 @@ The most common way to create Results is through factory functions:
 Wraps a callable that might raise an exception:
 
 ```python
-from logerr import Result
+>>> from logerr import Result
 
-# Success case
-result = Result.of(lambda: int("42"))
-print(result.unwrap())  # 42
+>>> # Success case
+>>> result = Result.of(lambda: int("42"))
+>>> result.unwrap()
+42
 
-# Error case - exception caught automatically
-result = Result.of(lambda: int("not a number"))
-print(result.is_err())  # True
-print(result.unwrap_or(0))  # 0
+>>> # Error case - exception caught automatically
+>>> result = Result.of(lambda: int("not a number"))
+>>> result.is_err()
+True
+>>> result.unwrap_or(0)
+0
+
 ```
 
 #### `from_optional()`
@@ -53,34 +62,42 @@ print(result.unwrap_or(0))  # 0
 Converts an optional value (might be None) into a Result:
 
 ```python
-from logerr import Result
+>>> from logerr import Result
 
-data = {"name": "Alice", "age": 30}
+>>> data = {"name": "Alice", "age": 30}
 
-# Success case
-result = Result.from_optional(data.get("name"), "Name not found")
-print(result.unwrap())  # "Alice"
+>>> # Success case
+>>> result = Result.from_optional(data.get("name"), "Name not found")
+>>> result.unwrap()
+'Alice'
 
-# Error case
-result = Result.from_optional(data.get("email"), "Email not found")
-print(result.unwrap_or("no-email@example.com"))  # "no-email@example.com"
+>>> # Error case
+>>> result = Result.from_optional(data.get("email"), "Email not found")
+>>> result.unwrap_or("no-email@example.com")
+'no-email@example.com'
+
 ```
 
 ## Checking Result State
 
 ```python
-from logerr import Ok, Err
+>>> from logerr import Ok, Err
 
-success = Ok("hello")
-failure = Err("error")
+>>> success = Ok("hello")
+>>> failure = Err("error")
 
-# Check if Ok
-print(success.is_ok())     # True
-print(failure.is_ok())     # False
+>>> # Check if Ok
+>>> success.is_ok()
+True
+>>> failure.is_ok()
+False
 
-# Check if Err
-print(success.is_err())    # False
-print(failure.is_err())    # True
+>>> # Check if Err
+>>> success.is_err()
+False
+>>> failure.is_err()
+True
+
 ```
 
 ## Extracting Values

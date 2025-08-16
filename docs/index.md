@@ -16,38 +16,43 @@
 ## Quick Start
 
 ```python
-import logerr
-from logerr import Ok, Err, Some, Nothing
+>>> import logerr
+>>> from logerr import Ok, Err, Some, Nothing
+>>> logerr.configure(enabled=False)  # Disable logging for doctest
+Ok(None)
 
-# Result types for operations that might fail
-def risky_operation():
-    raise ConnectionError("Database connection failed")
+>>> # Result types for operations that might fail
+>>> def risky_operation():
+...     raise ConnectionError("Database connection failed")
 
-result = logerr.result.of(risky_operation)
-if result.is_ok():
-    print(f"Success: {result.unwrap()}")
-else:
-    print("Operation failed - check logs for details")
-    # 🪵 Automatic logging output:
-    # 2024-01-15 14:23:12.345 | ERROR | logerr.result:425 - Result error in risky_operation:2 - Database connection failed
+>>> result = logerr.result.of(risky_operation)
+>>> if result.is_ok():
+...     print(f"Success: {result.unwrap()}")
+... else:
+...     print("Operation failed - check logs for details")
+Operation failed - check logs for details
+
 ```
 
 **✨ The key difference:** Errors are **automatically logged** with full context!
 
 ```python
-# Option types for nullable values  
-config = {"name": "MyApp"}
-db_url = logerr.option.from_nullable(config.get("database_url"))
-connection_string = db_url.unwrap_or("sqlite:///default.db")
-# 🪵 Automatic logging output:
-# 2024-01-15 14:23:12.456 | WARNING | logerr.option:421 - Option Nothing in from_nullable:1 - Value was None
+>>> # Option types for nullable values  
+>>> config = {"name": "MyApp"}
+>>> db_url = logerr.option.from_nullable(config.get("database_url"))
+>>> connection_string = db_url.unwrap_or("sqlite:///default.db")
+>>> connection_string
+'sqlite:///default.db'
 
-# Method chaining with automatic error handling
-processed = (Ok("hello world")
-    .map(str.upper)
-    .map(lambda s: s.split())
-    .map(len)
-    .unwrap_or(0))
+>>> # Method chaining with automatic error handling
+>>> processed = (Ok("hello world")
+...     .map(str.upper)
+...     .map(lambda s: s.split())
+...     .map(len)
+...     .unwrap_or(0))
+>>> processed
+2
+
 ```
 
 ## Why logerr?
@@ -90,29 +95,31 @@ pip install -e .
 ## Example: Real-World Usage
 
 ```python
-import logerr
-from pathlib import Path
+>>> import logerr
+>>> from pathlib import Path
+>>> import json
 
-def load_user_config(path: str) -> logerr.Result[dict, str]:
-    """Load and parse user configuration file."""
-    return (logerr.result.of(lambda: Path(path).read_text())
-        .then(lambda text: logerr.result.of(lambda: json.loads(text)))
-        .map_err(lambda e: f"Failed to load config from {path}: {e}"))
+>>> def load_user_config(path: str) -> logerr.Result[dict, str]:
+...     """Load and parse user configuration file."""
+...     return (logerr.result.of(lambda: Path(path).read_text())
+...         .then(lambda text: logerr.result.of(lambda: json.loads(text)))
+...         .map_err(lambda e: f"Failed to load config from {path}: {e}"))
 
-def get_database_url(config: dict) -> logerr.Option[str]:
-    """Extract database URL from config."""
-    return (logerr.option.from_nullable(config.get("database"))
-        .then(lambda db: logerr.option.from_nullable(db.get("url"))))
+>>> def get_database_url(config: dict) -> logerr.Option[str]:
+...     """Extract database URL from config."""
+...     return (logerr.option.from_nullable(config.get("database"))
+...         .then(lambda db: logerr.option.from_nullable(db.get("url"))))
 
-# Usage
-config_result = load_user_config("app.json")
-if config_result.is_ok():
-    config = config_result.unwrap()
-    db_url = get_database_url(config).unwrap_or("sqlite:///default.db")
-    print(f"Using database: {db_url}")
-else:
-    print("Using default configuration")
-    # Error details are automatically logged!
+>>> # Usage with non-existent file (will fail)
+>>> config_result = load_user_config("app.json")
+>>> if config_result.is_ok():
+...     config = config_result.unwrap()
+...     db_url = get_database_url(config).unwrap_or("sqlite:///default.db")
+...     print(f"Using database: {db_url}")
+... else:
+...     print("Using default configuration")
+Using default configuration
+
 ```
 
 This code is clean, composable, and provides excellent error visibility through automatic logging.

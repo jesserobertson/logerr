@@ -13,6 +13,8 @@ from tenacity import stop_after_attempt, wait_fixed
 from logerr import Err, Ok, Result
 from logerr.recipes import retry
 
+pytestmark = [pytest.mark.recipes, pytest.mark.integration]
+
 
 class TestRetryDecorators:
     """Test retry decorators functionality."""
