@@ -16,6 +16,7 @@ site/
 
 # Ignore dotfiles
 .coverage 
+coverage.xml
 .envrc 
 .hypothesis
 .claude
