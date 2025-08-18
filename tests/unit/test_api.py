@@ -2,8 +2,12 @@
 Tests for the new clean API design.
 """
 
+import pytest
+
 import logerr
 from logerr import Err, Nothing, Ok, Some
+
+pytestmark = pytest.mark.unit
 
 
 class TestCleanAPI:

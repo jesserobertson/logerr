@@ -2,7 +2,11 @@
 Tests for core utility functions in logerr.utils module.
 """
 
+import pytest
+
 from logerr.utils import execute, log, nullable
+
+pytestmark = pytest.mark.unit
 
 
 class TestExecute:

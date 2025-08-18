@@ -4,6 +4,8 @@ import pytest
 
 from logerr import Err, Nothing, Ok, Some
 
+pytestmark = pytest.mark.unit
+
 
 class TestOptionComparisons:
     """Test comparison operations for Option types."""

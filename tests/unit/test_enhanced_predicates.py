@@ -1,7 +1,11 @@
 """Tests for enhanced predicate functionality."""
 
+import pytest
+
 import logerr
 from logerr import Ok, Some
+
+pytestmark = pytest.mark.unit
 
 
 class TestOptionPredicateEnhancements:
