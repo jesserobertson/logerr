@@ -1,37 +1,47 @@
-[workspace]
-authors = ["Jesse Robertson <jess.robertson@niwa.co.nz>"]
-channels = ["conda-forge"]
+[project]
 name = "logerr"
-platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
+description = "Rust-like Option and Result types with automatic logging integration"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64", "win-64"]
+
+[environments]
+default = ["dev", "docs"]
+dev = ["dev"]
+docs = ["docs"]
+recipes = ["recipes", "dev"]
 
 [tasks]
+# Unified task scripts
+quality = { cmd = "python scripts/quality.py", description = "Code quality management (linting, formatting, type checking)" }
+dev = { cmd = "python scripts/dev.py", description = "Development environment management (setup, status, clean)" }
+build = { cmd = "python scripts/build.py", description = "Build and distribution management (packaging, uploading)" }
+docs = { cmd = "python scripts/docs.py", description = "Documentation management (serve, build, deploy)" }
+test = { cmd = "python scripts/test.py", description = "Testing management (unit, integration, docs)" }
+
+# Unified operations
+clean = { cmd = "python scripts/test.py clean && python scripts/docs.py clean && python scripts/build.py clean && python scripts/dev.py clean", description = "Clean all project artifacts (test, docs, build, dev)" }
+check-all = { cmd = "python scripts/test.py all && python scripts/quality.py check", description = "Run comprehensive checks (all tests + quality)" }
 
 [dependencies]
+python = ">=3.12,<3.13"
 loguru = ">=0.7.3,<0.8"
 confection = ">=0.1.5,<0.2"
 
 [feature.dev.dependencies]
 pytest = "*"
+pytest-cov = ">=6.2.1,<7"
+pytest-xdist = "*"
 hypothesis = "*"
 mypy = "*"
-pytest-cov = ">=6.2.1,<7"
 ruff = "*"
 pre-commit = ">=4.2.0,<5"
 python-build = ">=1.2.2.post1,<2"
 twine = ">=6.1.0,<7"
 tenacity = ">=9.1.2,<10"
+rich = "*"
+typer = "*"
 
-[feature.dev.tasks]
-test = "PYTHONPATH=. pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term -m 'not slow'"
-test-all = "PYTHONPATH=. pytest tests/ docs/ README.md --doctest-modules logerr --doctest-glob='*.md' --cov=logerr --cov-report=term"
-pytest = "PYTHONPATH=. pytest"
-typecheck = "mypy logerr"
-quality = "ruff check logerr tests && ruff format --check logerr tests"
-clean = "rm -rf htmlcov/ site/ .coverage .pytest_cache/ **/__pycache__/ **/*.pyc .mypy_cache/ .hypothesis/"
-build = "python -m build"
-distribute = "twine upload dist/*"
-check-all = { depends-on = ["test", "typecheck", "quality"] }
 
 [feature.docs.dependencies]
 mkdocs = "*"
@@ -39,16 +49,9 @@ mkdocs-material = "*"
 mkdocstrings = "*"
 mkdocstrings-python = "*"
 
-[feature.docs.tasks]
-docs-serve = "mkdocs serve"
-docs-build = "mkdocs build"
 
 [feature.recipes.dependencies]
 tenacity = ">=9.1.2,<10"
 pymongo = ">=4.0.0,<5"
 pandas = ">=2.0.0,<3"
 
-[environments]
-dev = ["dev"] 
-docs = ["docs"]
-recipes = ["recipes", "dev"]
