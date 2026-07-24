@@ -421,6 +421,12 @@ class Option[T](ABC):
     def sequence(cls, items: Iterable[Option[T]]) -> Option[list[T]]:
         """Fold an iterable of Options into one Option of a list.
 
+        Args:
+            items: The Options to sequence.
+
+        Returns:
+            Some(values) if every item is Some, otherwise Nothing.
+
         Examples:
             >>> Option.sequence([Some(1), Some(2)])
             Some([1, 2])
@@ -434,6 +440,13 @@ class Option[T](ABC):
         cls, items: Iterable[U], func: Callable[[U], Option[T]]
     ) -> Option[list[T]]:
         """Map `func` over `items` and sequence the results.
+
+        Args:
+            items: The values to map over.
+            func: A function that returns an Option.
+
+        Returns:
+            Some(values) if every call returns Some, otherwise Nothing.
 
         Examples:
             >>> Option.traverse([1, 2, 3], lambda x: Some(x * 2))

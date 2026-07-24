@@ -406,6 +406,12 @@ class Result[T, E](ABC):
     def sequence(cls, items: Iterable[Result[T, E]]) -> Result[list[T], E]:
         """Fold an iterable of Results into one Result of a list.
 
+        Args:
+            items: The Results to sequence.
+
+        Returns:
+            Ok(values) if every item is Ok, otherwise the first Err encountered.
+
         Examples:
             >>> Result.sequence([Ok(1), Ok(2)])
             Ok([1, 2])
@@ -419,6 +425,13 @@ class Result[T, E](ABC):
         cls, items: Iterable[U], func: Callable[[U], Result[T, E]]
     ) -> Result[list[T], E]:
         """Map `func` over `items` and sequence the results.
+
+        Args:
+            items: The values to map over.
+            func: A function that returns a Result.
+
+        Returns:
+            Ok(values) if every call returns Ok, otherwise the first Err encountered.
 
         Examples:
             >>> Result.traverse([1, 2, 3], lambda x: Ok(x * 2))
