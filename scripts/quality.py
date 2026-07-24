@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.status import Status
 
 app = typer.Typer(help="Code quality management for logerr")
-console = Console()
+console = Console(legacy_windows=False)
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SOURCE_DIRS = ["logerr", "tests", "scripts"]

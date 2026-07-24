@@ -19,7 +19,7 @@ app = typer.Typer(
     help="Development Environment Management Script",
     add_completion=False,
 )
-console = Console()
+console = Console(legacy_windows=False)
 
 # Configuration
 PROJECT_ROOT = Path(__file__).parent.parent
