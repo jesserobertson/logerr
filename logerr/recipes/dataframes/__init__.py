@@ -22,7 +22,7 @@ Usage:
     }
 
     result = from_mongo(db.users, {}, schema=schema, log_missing_data=True)
-    df = result.unwrap_or_default()
+    df = result.unwrap_or(pd.DataFrame())  # Empty DataFrame if the query failed
 """
 
 from .conversion import convert_bson_value, infer_schema_from_documents

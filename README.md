@@ -109,6 +109,7 @@ config.configure_advanced({
 })
 
 # NoSQL to DataFrame conversion with data quality logging
+import pandas as pd
 from logerr.recipes.dataframes import Required, from_mongo
 
 schema = {
@@ -119,7 +120,7 @@ schema = {
 }
 
 df_result = from_mongo(db.users, {"status": "active"}, schema=schema)
-df = df_result.unwrap_or_default()
+df = df_result.unwrap_or(pd.DataFrame())  # Empty DataFrame if the query failed
 ```
 
 ## 🔍 Why logerr?

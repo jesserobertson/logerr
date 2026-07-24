@@ -56,7 +56,7 @@ def from_mongo(
         ... }
         >>> # Example usage (requires actual MongoDB collection):
         >>> # result = from_mongo(db.users, {"status": "active"}, schema=schema)
-        >>> # df = result.unwrap_or_default()
+        >>> # df = result.unwrap_or(pd.DataFrame())
     """
     # Set up operation name for logging
     operation_name = report_name or getattr(collection, "name", "mongo_query")
