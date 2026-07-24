@@ -379,46 +379,42 @@ def persistent[T](func: Callable[[], T]) -> Result[T, Exception]:
     return with_retry(func, max_attempts=10, delay=2.0, backoff=True)
 
 
-# Method to add retry capability to existing Results
-def _add_retry_method() -> None:
-    """Add retry method to Result base class."""
+def retry_if_err(
+    result: Result[T, E],
+    func: Callable[[], Result[T, E]],
+    max_attempts: int = 3,
+    delay: float = 1.0,
+    backoff: bool = True,
+    log_attempts: bool = True,
+) -> Result[T, E]:
+    """Retry the provided function if the given Result is an Err.
 
-    def retry(
-        self: Result[T, E],
-        func: Callable[[], Result[T, E]],
-        max_attempts: int = 3,
-        delay: float = 1.0,
-        backoff: bool = True,
-        log_attempts: bool = True,
-    ) -> Result[T, E]:
-        """Retry the provided function if this Result is an Err.
+    If ``result`` is Ok, it is returned immediately without calling ``func``.
+    Otherwise ``func`` is retried using the same semantics as :func:`until_ok`.
 
-        If this Result is Ok, return it immediately. Otherwise, retry the function.
+    This is a plain functional alternative to attaching a ``.retry()`` method
+    onto the core ``Result`` type: it is only available when explicitly
+    imported from ``logerr.recipes.retry``, keeping optional functionality out
+    of the core API surface.
 
-        Args:
-            func: Function to retry if this is Err.
-            max_attempts: Maximum retry attempts.
-            delay: Base delay between retries.
-            backoff: Whether to use exponential backoff.
-            log_attempts: Whether to log attempts.
+    Args:
+        result: The Result to check; retried only if it is Err.
+        func: Function to retry if ``result`` is Err.
+        max_attempts: Maximum retry attempts.
+        delay: Base delay between retries.
+        backoff: Whether to use exponential backoff.
+        log_attempts: Whether to log attempts.
 
-        Returns:
-            This Result if Ok, otherwise the result of retrying func.
+    Returns:
+        ``result`` if it is Ok, otherwise the result of retrying ``func``.
 
-        Examples:
-            >>> result = some_operation()
-            >>> final_result = result.retry(lambda: fallback_operation())
-        """
-        if self.is_ok():
-            return self
+    Examples:
+        >>> result = Err("original error")
+        >>> final_result = retry_if_err(result, lambda: Ok(42))
+        >>> final_result.unwrap()
+        42
+    """
+    if result.is_ok():
+        return result
 
-        return until_ok(func, max_attempts, delay, backoff, log_attempts)
-
-    # Add the method to the Result class
-    from ..result import Result
-
-    Result.retry = retry  # type: ignore
-
-
-# Initialize the retry method on import
-_add_retry_method()
+    return until_ok(func, max_attempts, delay, backoff, log_attempts)

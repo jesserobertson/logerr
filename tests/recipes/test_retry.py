@@ -13,7 +13,7 @@ from tenacity import stop_after_attempt, wait_fixed
 from logerr import Err, Ok, Result
 from logerr.recipes import retry
 
-pytestmark = [pytest.mark.recipes, pytest.mark.integration]
+pytestmark = [pytest.mark.recipes]
 
 
 class TestRetryDecorators:
@@ -231,6 +231,67 @@ class TestRetryDecorators:
         assert result.is_err()
         assert call_count == 2  # Exactly 2 attempts due to stop condition
 
+    def test_on_err_type_decorator_with_logging_enabled(self):
+        """Test on_err_type logging branches (retryable, non-retryable, success, exhaustion)."""
+        call_count = 0
+
+        @retry.on_err_type(
+            ValueError,
+            stop=stop_after_attempt(3),
+            wait=wait_fixed(0.01),
+            log_attempts=True,
+        )
+        def selective_failing_operation_logged() -> Result[int, Exception]:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return Err.from_exception(ValueError("retry this"))
+            return Ok(42)
+
+        result = selective_failing_operation_logged()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+        assert call_count == 2
+
+    def test_on_err_type_decorator_non_retryable_with_logging(self):
+        """Test on_err_type logs the non-retryable-error branch."""
+        call_count = 0
+
+        @retry.on_err_type(
+            ValueError,
+            stop=stop_after_attempt(3),
+            wait=wait_fixed(0.01),
+            log_attempts=True,
+        )
+        def non_retryable_logged() -> Result[int, Exception]:
+            nonlocal call_count
+            call_count += 1
+            return Err.from_exception(RuntimeError("don't retry this"))
+
+        result = non_retryable_logged()
+        assert result.is_err()
+        assert isinstance(result.unwrap_err(), RuntimeError)
+        assert call_count == 1
+
+    def test_on_err_type_decorator_exhausts_with_logging(self):
+        """Test on_err_type logs a warning when retries are exhausted."""
+        call_count = 0
+
+        @retry.on_err_type(
+            ValueError,
+            stop=stop_after_attempt(2),
+            wait=wait_fixed(0.01),
+            log_attempts=True,
+        )
+        def always_failing_type_logged() -> Result[int, Exception]:
+            nonlocal call_count
+            call_count += 1
+            return Err.from_exception(ValueError("always fails"))
+
+        result = always_failing_type_logged()
+        assert result.is_err()
+        assert call_count == 2
+
     def test_on_err_type_decorator_with_multiple_exception_types(self):
         """Test on_err_type with multiple exception types."""
         call_count = 0
@@ -289,6 +350,41 @@ class TestRetryDecorators:
         result = using_result_factories()
         assert result.is_ok()
         assert result.unwrap() == 42
+
+    def test_on_err_retries_real_exception_error(self):
+        """Test that on_err retries when the Err wraps a real Exception."""
+        call_count = 0
+
+        @retry.on_err(
+            stop=stop_after_attempt(3), wait=wait_fixed(0.01), log_attempts=False
+        )
+        def raises_wrapped_exception() -> Result[int, Exception]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                return Err.from_exception(ValueError("wrapped failure"))
+            return Ok(42)
+
+        result = raises_wrapped_exception()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+        assert call_count == 2
+
+    def test_on_err_decorator_exhausts_retries_with_logging(self):
+        """Test that on_err logs a warning when retries are exhausted."""
+        call_count = 0
+
+        @retry.on_err(
+            stop=stop_after_attempt(2), wait=wait_fixed(0.01), log_attempts=True
+        )
+        def always_failing_with_logging() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            return Err("always fails")
+
+        result = always_failing_with_logging()
+        assert result.is_err()
+        assert call_count == 2
 
     def test_decorator_preserves_original_function_behavior(self):
         """Test that decorated functions behave identically to originals when successful."""
@@ -380,6 +476,26 @@ class TestRetryUtilities:
         assert isinstance(result.unwrap_err(), ValueError)
         assert call_count == 3
 
+    def test_with_retry_all_attempts_fail_with_logging(self):
+        """Test with_retry logs a warning when all attempts fail (log_attempts=True)."""
+        call_count = 0
+
+        def always_failing_func_logged():
+            nonlocal call_count
+            call_count += 1
+            raise ValueError("always fails")
+
+        result = retry.with_retry(
+            always_failing_func_logged,
+            max_attempts=2,
+            delay=0.01,
+            backoff=False,
+            log_attempts=True,
+        )
+        assert result.is_err()
+        assert isinstance(result.unwrap_err(), ValueError)
+        assert call_count == 2
+
     def test_until_ok_success(self):
         """Test until_ok with Result-returning function."""
         call_count = 0
@@ -441,6 +557,69 @@ class TestRetryUtilities:
         assert result.is_err()
         assert call_count == 3
 
+    def test_until_ok_eventual_success_with_logging(self):
+        """Test until_ok logging branches: start, Err logging, success-after-retry logging."""
+        call_count = 0
+
+        def eventually_ok_func_logged() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                return Err("not yet")
+            return Ok(42)
+
+        result = retry.until_ok(
+            eventually_ok_func_logged,
+            max_attempts=3,
+            delay=0.01,
+            backoff=False,
+            log_attempts=True,
+        )
+        assert result.is_ok()
+        assert result.unwrap() == 42
+        assert call_count == 2
+
+    def test_until_ok_retries_real_exception_error(self):
+        """Test that until_ok retries when the Err wraps a real Exception."""
+        call_count = 0
+
+        def eventually_ok_with_exception_error() -> Result[int, Exception]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                return Err.from_exception(ValueError("wrapped failure"))
+            return Ok(42)
+
+        result = retry.until_ok(
+            eventually_ok_with_exception_error,
+            max_attempts=3,
+            delay=0.01,
+            backoff=False,
+            log_attempts=False,
+        )
+        assert result.is_ok()
+        assert result.unwrap() == 42
+        assert call_count == 2
+
+    def test_until_ok_all_attempts_fail_with_logging(self):
+        """Test until_ok logs a warning when retries are exhausted."""
+        call_count = 0
+
+        def always_err_func_logged() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            return Err("always fails")
+
+        result = retry.until_ok(
+            always_err_func_logged,
+            max_attempts=2,
+            delay=0.01,
+            backoff=False,
+            log_attempts=True,
+        )
+        assert result.is_err()
+        assert call_count == 2
+
 
 class TestConvenienceFunctions:
     """Test convenience retry functions."""
@@ -494,10 +673,10 @@ class TestConvenienceFunctions:
         assert call_count == 5
 
 
-class TestResultRetryMethod:
-    """Test the retry method added to Result class."""
+class TestRetryIfErr:
+    """Test the retry_if_err functional helper (fallback-on-Err pattern)."""
 
-    def test_result_retry_method_ok_result(self):
+    def test_retry_if_err_ok_result(self):
         """Test that Ok results don't trigger retry."""
         call_count = 0
 
@@ -507,13 +686,13 @@ class TestResultRetryMethod:
             return Ok(99)
 
         ok_result = Ok(42)
-        final_result = ok_result.retry(fallback_func)
+        final_result = retry.retry_if_err(ok_result, fallback_func)
 
         assert final_result.is_ok()
         assert final_result.unwrap() == 42  # Original value, not fallback
         assert call_count == 0  # Fallback never called
 
-    def test_result_retry_method_err_result(self):
+    def test_retry_if_err_err_result(self):
         """Test that Err results trigger retry."""
         call_count = 0
 
@@ -525,13 +704,46 @@ class TestResultRetryMethod:
             return Ok(99)
 
         err_result = Err("original error")
-        final_result = err_result.retry(
-            fallback_func, max_attempts=3, delay=0.01, backoff=False, log_attempts=False
+        final_result = retry.retry_if_err(
+            err_result,
+            fallback_func,
+            max_attempts=3,
+            delay=0.01,
+            backoff=False,
+            log_attempts=False,
         )
 
         assert final_result.is_ok()
         assert final_result.unwrap() == 99
         assert call_count == 2
+
+    def test_retry_if_err_err_result_exhausts(self):
+        """Test that retry_if_err returns the last Err when the fallback never succeeds."""
+        call_count = 0
+
+        def always_failing_fallback() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            return Err("still failing")
+
+        err_result = Err("original error")
+        final_result = retry.retry_if_err(
+            err_result,
+            always_failing_fallback,
+            max_attempts=2,
+            delay=0.01,
+            backoff=False,
+            log_attempts=False,
+        )
+
+        assert final_result.is_err()
+        assert call_count == 2
+
+    def test_result_class_has_no_retry_method(self):
+        """Test that the core Result class is not monkey-patched with a retry method."""
+        assert not hasattr(Result, "retry")
+        assert not hasattr(Ok(1), "retry")
+        assert not hasattr(Err("e"), "retry")
 
 
 class TestLogging:
