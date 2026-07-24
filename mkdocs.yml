@@ -38,6 +38,7 @@ nav:
     - Option Types: guide/option-types.md
     - Configuration: guide/configuration.md
     - Examples: guide/examples.md
+    - Functional Programming Examples: guide/functional-examples.md
   - API Reference:
     - Result: api/result.md
     - Option: api/option.md
