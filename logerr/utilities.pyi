@@ -112,7 +112,7 @@ def error(
     """Create a standardized validation error message."""
     ...
 
-def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Any:
+def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Result[Any, Exception]:
     """Apply a series of functions in pipeline fashion."""
     ...
 

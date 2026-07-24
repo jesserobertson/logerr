@@ -28,6 +28,9 @@ jobs:
     - name: Run quality checks
       run: pixi run -e dev quality
 
+    - name: Check version sync
+      run: pixi run -e dev check-version-sync
+
   test:
     name: Test (${{ matrix.os }})
     needs: quality

@@ -415,17 +415,20 @@ def error(
 
 
 # Convenience function for pipeline-style functional composition
-def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Any:
-    """Apply a series of functions in pipeline fashion.
+def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Result[Any, Exception]:
+    """Apply a series of functions in pipeline fashion, short-circuiting on failure.
 
-    Enables clean functional composition without deep nesting.
+    Enables clean functional composition without deep nesting. Each function is
+    applied via Result.of(), so if any step raises, the exception is caught and
+    returned as Err immediately - remaining functions are not called.
 
     Args:
         value: Initial value to transform
         *functions: Functions to apply in sequence
 
     Returns:
-        Result of applying all functions in sequence
+        Ok(final_result) if every step succeeded, otherwise Err(exception) from
+        the first step that raised.
 
     Examples:
         >>> from logerr.utilities import pipe
@@ -435,13 +438,16 @@ def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Any:
         ...     str.upper,
         ...     lambda s: s.split()
         ... )
-        >>> result
+        >>> result.unwrap()
         ['HELLO', 'WORLD']
     """
     result = value
     for func in functions:
-        result = func(result)
-    return result
+        step = Result.of(lambda f=func, r=result: f(r))
+        if step.is_err():
+            return step
+        result = step.unwrap()
+    return Ok(result)
 
 
 def try_chain[T](*callables: Callable[[], T]) -> Option[T]:

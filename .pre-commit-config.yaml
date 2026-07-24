@@ -2,34 +2,19 @@
 repos:
   - repo: local
     hooks:
-      # Run all quality checks (same as CI)
+      # Run all checks (test, typecheck, quality, version sync) - same as CI.
+      # No separate ruff/mypy hooks here: check-all already runs them, and
+      # always_run: true means adding them again would just double the work
+      # on every commit.
       - id: check-all
-        name: Run all checks (test, typecheck, quality)
+        name: Run all checks (test, typecheck, quality, version sync)
         entry: pixi run -e dev check-all
         language: system
         always_run: true
         pass_filenames: false
-        
-      # Individual hooks for faster iteration
-      - id: ruff-check
-        name: Ruff linter
-        entry: pixi run -e dev ruff check
-        language: system
-        files: \.(py)$
-        
-      - id: ruff-format
-        name: Ruff formatter
-        entry: pixi run -e dev ruff format --check
-        language: system
-        files: \.(py)$
-        
-      - id: mypy
-        name: MyPy type checking
-        entry: pixi run -e dev mypy logerr
-        language: system
-        files: \.(py)$
-        pass_filenames: false
-        
+
+      # Manual-stage convenience: run just the tests without the full
+      # check-all overhead, e.g. `pre-commit run pytest --hook-stage manual`
       - id: pytest
         name: Run tests
         entry: pixi run -e dev pytest tests/ --doctest-modules logerr

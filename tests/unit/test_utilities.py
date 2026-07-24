@@ -292,17 +292,36 @@ class TestPipe:
     def test_pipe_single_function(self):
         """Test pipe with a single function."""
         result = pipe("hello", str.upper)
-        assert result == "HELLO"
+        assert result.is_ok()
+        assert result.unwrap() == "HELLO"
 
     def test_pipe_multiple_functions(self):
         """Test pipe with multiple functions."""
         result = pipe("  hello world  ", str.strip, str.upper, lambda s: s.split())
-        assert result == ["HELLO", "WORLD"]
+        assert result.is_ok()
+        assert result.unwrap() == ["HELLO", "WORLD"]
 
     def test_pipe_no_functions(self):
         """Test pipe with no functions."""
         result = pipe("hello")
-        assert result == "hello"
+        assert result.is_ok()
+        assert result.unwrap() == "hello"
+
+    def test_pipe_short_circuits_on_failure(self):
+        """A raising step returns Err immediately; later steps never run."""
+        calls = []
+
+        def track(x):
+            calls.append(x)
+            return x
+
+        def fail(x):
+            raise ValueError("boom")
+
+        result = pipe("start", track, fail, track)
+        assert result.is_err()
+        assert isinstance(result.unwrap_err(), ValueError)
+        assert calls == ["start"]  # second `track` never called
 
 
 class TestTryChain:

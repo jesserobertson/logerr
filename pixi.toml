@@ -20,10 +20,11 @@ dev = { cmd = "python scripts/dev.py", description = "Development environment ma
 build = { cmd = "python scripts/build.py", description = "Build and distribution management (packaging, uploading)" }
 docs = { cmd = "python scripts/docs.py", description = "Documentation management (serve, build, deploy)" }
 test = { cmd = "python scripts/test.py", description = "Testing management (unit, integration, docs)" }
+check-version-sync = { cmd = "python scripts/check_version_sync.py", description = "Check version is consistent across pixi.toml, pyproject.toml, and logerr/__init__.py" }
 
 # Unified operations
 clean = { cmd = "python scripts/test.py clean && python scripts/docs.py clean && python scripts/build.py clean && python scripts/dev.py clean", description = "Clean all project artifacts (test, docs, build, dev)" }
-check-all = { cmd = "python scripts/test.py all && python scripts/quality.py check", description = "Run comprehensive checks (all tests + quality)" }
+check-all = { cmd = "python scripts/test.py all && python scripts/quality.py check && python scripts/check_version_sync.py", description = "Run comprehensive checks (all tests + quality + version sync)" }
 
 [dependencies]
 python = ">=3.12,<3.14"

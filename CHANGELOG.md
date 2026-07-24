@@ -10,6 +10,11 @@ a 1.0 stability commitment is made.
 
 ### Breaking Changes
 
+- `pipe()` now returns `Result[Any, Exception]` instead of the raw final
+  value, short-circuiting on the first step that raises (previously it had
+  no error handling at all, unlike every other function in
+  `logerr.utilities`). Callers need `.unwrap()` (or `.map()`/`.unwrap_or()`)
+  to get the value out.
 - `logerr.recipes.utilities` removed entirely. Its 7 functions (`validate`,
   `resolve`, `chain`, `attribute`, `error`, `pipe`, `try_chain`) had no
   dependency on tenacity/pandas/pymongo - the `recipes` split served no
@@ -103,6 +108,19 @@ a 1.0 stability commitment is made.
   codebase. The real methods are `Result.of()`/`Option.of()` and `.then()`,
   which `docs/guide/getting-started.md` already used correctly. All CLAUDE.md
   examples now use the real method names.
+
+### Added (CI/tooling)
+
+- `scripts/check_version_sync.py` + `pixi run -e dev check-version-sync`:
+  fails if the version string in pixi.toml, pyproject.toml, and
+  logerr/__init__.py ever diverge. Wired into `check-all` (so it also runs
+  in the pre-commit hook) and as a dedicated CI step.
+
+### Changed (CI/tooling)
+
+- `.pre-commit-config.yaml`: removed the separate always-run `ruff-check`/
+  `ruff-format`/`mypy` hooks - `check-all` (also always-run) already covers
+  all three, so they were silently running twice on every commit.
 
 ### Test Coverage
 
