@@ -89,7 +89,6 @@ logerr/
 │   ├── result.py               # Result<T, E>, Ok<T>, Err<E> implementation
 │   ├── config.py               # Core configuration (basic enabled/level)
 │   ├── utilities.py            # Core utility functions (execute, nullable, log)
-│   ├── protocols.py             # Type protocols for comparison support
 │   └── recipes/                # Optional extended functionality
 │       ├── __init__.py
 │       ├── config.py            # Advanced per-library/confection config
@@ -165,7 +164,7 @@ The library aims to replicate Rust's Option and Result types with Python's type 
 - Pattern matching through method chaining and `match()` methods
 - Automatic logging integration for error cases
 - Configuration-driven behavior through confection
-- Comparison support via type protocols
+- Comparison operators (`<`, `<=`, `>`, `>=`) implemented directly on Some/Nothing/Ok/Err via `match`-based type narrowing
 - Comprehensive factory functions for creating Options and Results
 
 ### Functional Programming Style
@@ -181,7 +180,7 @@ def load_config(path: str) -> Result[Config, Exception]:
             lambda p: Path(p).exists(),
             FileNotFoundError(f"Config not found: {path}")
         )
-        .and_then(lambda p: Result.from_callable(lambda: Config().from_disk(p)))
+        .then(lambda p: Result.of(lambda: Config().from_disk(p)))
         .map(lambda config: config.get("app_section", {}))
     )
 
@@ -215,8 +214,8 @@ def load_config(path: str) -> Result[Config, Exception]:
 **Guidelines**:
 - Use inline lambdas for simple operations (1-2 lines)
 - Extract complex logic into separate functions when lambdas become unreadable
-- Prefer `Result.from_callable`, `Result.from_predicate`, `Option.from_nullable` over manual construction
-- Use method chaining (.and_then, .map, .filter) for sequential operations
+- Prefer `Result.of`, `Result.from_predicate`, `Option.from_nullable` over manual construction
+- Use method chaining (.then, .map, .filter) for sequential operations
 - Avoid deep nesting - flatten with functional composition
 - **Use utility functions from `logerr.utilities` (core) or `logerr.recipes.utilities` (advanced) for common patterns**
 
@@ -232,7 +231,7 @@ Use `execute()` instead of manual try/catch blocks:
 from logerr.utilities import execute
 
 result = execute(lambda: risky_operation())
-option_result = execute(lambda: maybe_none(), on_exception="option")
+option_result = execute(lambda: maybe_none(), return_type="option")
 
 # Less preferred: Manual try/catch
 try:
@@ -338,7 +337,7 @@ def retry_operation(max_attempts: int | None = None) -> None:
 |----------|---------|------------------|
 | `validate()` | Predicate-based validation with consistent error handling | Input validation, constraint checking |
 | `resolve()` | Parameter resolution with validation | Function parameters, configuration merging |
-| `chain()` | Exception-safe method chaining | Monadic operations (map, and_then) |
+| `chain()` | Exception-safe method chaining | Monadic operations (map, then) |
 | `attribute()` | Safe attribute access | Getting function names, object properties |
 | `error()` | Standardized validation error messages | Consistent error formatting |
 | `pipe()` | Pipeline-style composition of functions | Multi-step transforms without nesting |
@@ -367,12 +366,12 @@ from logerr.recipes.config import configure_advanced, configure_from_confection
 from logerr import Result, Option
 
 # Result factories
-result = Result.from_callable(lambda: some_function())
+result = Result.of(lambda: some_function())
 result = Result.from_optional(maybe_value, "was None")
 
 # Option factories  
 option = Option.from_nullable(dict.get("key"))
-option = Option.from_callable(lambda: expensive_computation())
+option = Option.of(lambda: expensive_computation())
 option = Option.from_predicate(value, lambda x: x > 0)
 ```
 

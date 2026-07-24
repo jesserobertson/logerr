@@ -220,8 +220,6 @@ logerr/result.py
 logerr/result.pyi
 logerr/utilities.py
 logerr/utilities.pyi
-logerr/protocols.py
-logerr/protocols.pyi
 logerr/py.typed
 logerr/recipes/__init__.py
 logerr/recipes/config.py
