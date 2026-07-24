@@ -304,3 +304,84 @@ class TestChaining:
                 .map(lambda x: 1 / 0)  # Error here, propagates
                 .map(lambda x: str(x))
             )  # Never reached
+
+
+class TestResultCombinatorMethods:
+    """Test that zip/flatten/and_/or_/ok/err methods delegate to logerr.functools."""
+
+    def test_ok_zip_ok(self):
+        result = Ok(1).zip(Ok("a"))
+        assert result.is_ok()
+        assert result.unwrap() == (1, "a")
+
+    def test_ok_zip_err(self):
+        result = Ok(1).zip(Err("boom"))
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_err_zip(self):
+        result = Err("boom").zip(Ok(1))
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_ok_flatten(self):
+        result = Ok(Ok(42)).flatten()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+
+    def test_err_flatten(self):
+        result = Err("boom").flatten()
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_ok_and(self):
+        result = Ok(1).and_(Ok("a"))
+        assert result.is_ok()
+        assert result.unwrap() == "a"
+
+    def test_err_and(self):
+        result = Err("boom").and_(Ok("a"))
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_ok_or(self):
+        result = Ok(1).or_(Err("fallback"))
+        assert result.is_ok()
+        assert result.unwrap() == 1
+
+    def test_err_or(self):
+        result = Err("primary").or_(Ok(2))
+        assert result.is_ok()
+        assert result.unwrap() == 2
+
+    def test_ok_ok_method(self):
+        result = Ok(42).ok()
+        assert result.is_some()
+        assert result.unwrap() == 42
+
+    def test_err_ok_method(self):
+        result = Err("boom").ok()
+        assert result.is_nothing()
+
+    def test_err_err_method(self):
+        result = Err("boom").err()
+        assert result.is_some()
+        assert result.unwrap() == "boom"
+
+    def test_ok_err_method(self):
+        result = Ok(42).err()
+        assert result.is_nothing()
+
+    def test_ok_iter(self):
+        assert list(Ok(42)) == [42]
+
+    def test_err_iter(self):
+        assert list(Err("boom")) == []
+
+    def test_builtin_zip_works_via_iter(self):
+        """Once Result is iterable, Python's own zip() works directly -
+        no bespoke logerr zip wrapper needed. strict=False is explicit
+        because Ok/Err legitimately yield different counts (0 or 1) by
+        design - that's not a bug to catch here."""
+        assert list(zip(Ok(1), Ok("a"), strict=False)) == [(1, "a")]
+        assert list(zip(Err("boom"), Ok("a"), strict=False)) == []

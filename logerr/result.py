@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from typing import Any, TypeVar
+from collections.abc import Callable, Iterator
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    from .option import Option
 
 from loguru import logger
 
@@ -257,6 +260,124 @@ class Result[T, E](ABC):
         """
         pass
 
+    @abstractmethod
+    def __iter__(self) -> Iterator[T]:
+        """Iterate over the Ok value, 0 or 1 times.
+
+        Matches Rust's Result::iter() - the Err value is never yielded,
+        only the Ok value if present. Lets Result compose with the
+        standard iterator toolkit (zip, itertools, etc.) directly.
+
+        Returns:
+            An iterator yielding the value once if Ok, or nothing if Err.
+
+        Examples:
+            >>> list(Ok(42))
+            [42]
+            >>> list(Err("boom"))
+            []
+        """
+        pass
+
+    @abstractmethod
+    def zip[U](self, other: Result[U, E]) -> Result[tuple[T, U], E]:
+        """Combine this Result with another into a Result of a tuple.
+
+        Args:
+            other: The Result to combine with.
+
+        Returns:
+            Ok((value, other_value)) if both are Ok, otherwise the first
+            Err encountered (checking self before other).
+
+        Examples:
+            >>> Ok(1).zip(Ok("a"))
+            Ok((1, 'a'))
+            >>> Ok(1).zip(Err("boom"))  # doctest: +ELLIPSIS
+            Err(...)
+        """
+        pass
+
+    @abstractmethod
+    def flatten(self: Result[Result[T, E], E]) -> Result[T, E]:
+        """Flatten a nested Result by one level.
+
+        Returns:
+            The inner Result if this is Ok, otherwise this Err.
+
+        Examples:
+            >>> Ok(Ok(42)).flatten()
+            Ok(42)
+        """
+        pass
+
+    @abstractmethod
+    def and_[U](self, other: Result[U, E]) -> Result[U, E]:
+        """Return `other` if this is Ok, otherwise this Err.
+
+        Args:
+            other: The Result to return if this is Ok.
+
+        Returns:
+            `other` if this is Ok, otherwise this Err re-wrapped.
+
+        Examples:
+            >>> Ok(1).and_(Ok("a"))
+            Ok('a')
+            >>> Err("boom").and_(Ok("a"))  # doctest: +ELLIPSIS
+            Err(...)
+        """
+        pass
+
+    @abstractmethod
+    def or_[F](self, other: Result[T, F]) -> Result[T, F]:
+        """Return this Result if Ok, otherwise `other`.
+
+        Args:
+            other: The fallback Result if this is Err. May have a
+                different error type than this Result.
+
+        Returns:
+            This Result's value re-wrapped if Ok, otherwise `other`.
+
+        Examples:
+            >>> Ok(1).or_(Err("fallback"))
+            Ok(1)
+            >>> Err("primary").or_(Ok(2))
+            Ok(2)
+        """
+        pass
+
+    @abstractmethod
+    def ok(self) -> Option[T]:
+        """Convert this Result into an Option, discarding any error.
+
+        Returns:
+            Some(value) if Ok, otherwise Nothing.
+
+        Examples:
+            >>> Ok(42).ok()
+            Some(42)
+            >>> Err("boom").ok()  # doctest: +ELLIPSIS
+            Nothing(...)
+        """
+        pass
+
+    @abstractmethod
+    def err(self) -> Option[E]:
+        """Convert this Result into an Option of its error.
+
+        Returns:
+            Some(error) if Err, otherwise Nothing.
+
+        Examples:
+            >>> Err("boom").err()
+            Some('boom')
+            >>> Ok(42).err()  # doctest: +ELLIPSIS
+            Nothing(...)
+        """
+        pass
+
     @classmethod
     def of(cls, f: Callable[[], T]) -> Result[T, Exception]:
         """Create a Result from a callable that might raise an exception."""
@@ -353,6 +474,39 @@ class Ok[T, E](Result[T, E]):
 
     def or_else[U](self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
         return Ok(self._value)
+
+    def __iter__(self) -> Iterator[T]:
+        yield self._value
+
+    def zip[U](self, other: Result[U, E]) -> Result[tuple[T, U], E]:
+        from .functools import zip_result
+
+        return zip_result(self, other)
+
+    def flatten(self: Ok[Result[T, E], E]) -> Result[T, E]:
+        from .functools import flatten_result
+
+        return flatten_result(self)
+
+    def and_[U](self, other: Result[U, E]) -> Result[U, E]:
+        from .functools import and_result
+
+        return and_result(self, other)
+
+    def or_[F](self, other: Result[T, F]) -> Result[T, F]:
+        from .functools import or_result
+
+        return or_result(self, other)
+
+    def ok(self) -> Option[T]:
+        from .functools import ok as ok_fn
+
+        return ok_fn(self)
+
+    def err(self) -> Option[E]:
+        from .functools import err as err_fn
+
+        return err_fn(self)
 
     def __repr__(self) -> str:
         return f"Ok({self._value!r})"
@@ -558,6 +712,39 @@ class Err[T, E](Result[T, E]):
 
     def or_else[U](self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
         return f(self._error)
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(())
+
+    def zip[U](self, other: Result[U, E]) -> Result[tuple[T, U], E]:
+        from .functools import zip_result
+
+        return zip_result(self, other)
+
+    def flatten(self: Err[Result[T, E], E]) -> Result[T, E]:
+        from .functools import flatten_result
+
+        return flatten_result(self)
+
+    def and_[U](self, other: Result[U, E]) -> Result[U, E]:
+        from .functools import and_result
+
+        return and_result(self, other)
+
+    def or_[F](self, other: Result[T, F]) -> Result[T, F]:
+        from .functools import or_result
+
+        return or_result(self, other)
+
+    def ok(self) -> Option[T]:
+        from .functools import ok as ok_fn
+
+        return ok_fn(self)
+
+    def err(self) -> Option[E]:
+        from .functools import err as err_fn
+
+        return err_fn(self)
 
     def __repr__(self) -> str:
         return f"Err({self._error!r})"
