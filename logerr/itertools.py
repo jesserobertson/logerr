@@ -119,3 +119,57 @@ def traverse_result[T, U, E](
         Ok([2, 4, 6])
     """
     return sequence_result(func(item) for item in items)
+
+
+def partition_option[T](items: Iterable[Option[T]]) -> tuple[list[T], int]:
+    """Split an iterable of Options into present values and a Nothing count.
+
+    Unlike sequence_option, this does not short-circuit - every item is
+    visited.
+
+    Args:
+        items: The Options to partition.
+
+    Returns:
+        A tuple of (values, nothing_count).
+
+    Examples:
+        >>> from logerr import Some, Nothing
+        >>> partition_option([Some(1), Nothing.empty(), Some(3)])
+        ([1, 3], 1)
+    """
+    values: list[T] = []
+    nothing_count = 0
+    for item in items:
+        if item.is_some():
+            values.append(item.unwrap())
+        else:
+            nothing_count += 1
+    return values, nothing_count
+
+
+def partition_result[T, E](items: Iterable[Result[T, E]]) -> tuple[list[T], list[E]]:
+    """Split an iterable of Results into Ok values and Err values.
+
+    Unlike sequence_result, this does not short-circuit - every item is
+    visited.
+
+    Args:
+        items: The Results to partition.
+
+    Returns:
+        A tuple of (oks, errs).
+
+    Examples:
+        >>> from logerr import Ok, Err
+        >>> partition_result([Ok(1), Err("boom"), Ok(3)])
+        ([1, 3], ['boom'])
+    """
+    oks: list[T] = []
+    errs: list[E] = []
+    for item in items:
+        if item.is_ok():
+            oks.append(item.unwrap())
+        else:
+            errs.append(item.unwrap_err())
+    return oks, errs
