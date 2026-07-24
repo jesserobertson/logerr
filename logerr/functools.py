@@ -69,3 +69,46 @@ def zip_result[T, U, E](a: Result[T, E], b: Result[U, E]) -> Result[tuple[T, U],
     if b.is_err():
         return Err(b.unwrap_err(), _skip_logging=True)
     return Ok((a.unwrap(), b.unwrap()))
+
+
+def flatten_option[T](nested: Option[Option[T]]) -> Option[T]:
+    """Flatten a nested Option by one level.
+
+    Args:
+        nested: An Option containing another Option.
+
+    Returns:
+        The inner Option if the outer is Some, otherwise Nothing.
+
+    Examples:
+        >>> from logerr import Some, Nothing
+        >>> flatten_option(Some(Some(42)))
+        Some(42)
+        >>> flatten_option(Nothing.empty())
+        Nothing('Empty option')
+    """
+    if nested.is_some():
+        return nested.unwrap()
+    return Nothing.empty()
+
+
+def flatten_result[T, E](nested: Result[Result[T, E], E]) -> Result[T, E]:
+    """Flatten a nested Result by one level.
+
+    Args:
+        nested: A Result containing another Result, sharing the same
+            error type.
+
+    Returns:
+        The inner Result if the outer is Ok, otherwise the outer Err.
+
+    Examples:
+        >>> from logerr import Ok, Err
+        >>> flatten_result(Ok(Ok(42)))
+        Ok(42)
+        >>> flatten_result(Err("outer boom"))  # doctest: +ELLIPSIS
+        Err(...)
+    """
+    if nested.is_err():
+        return Err(nested.unwrap_err(), _skip_logging=True)
+    return nested.unwrap()
