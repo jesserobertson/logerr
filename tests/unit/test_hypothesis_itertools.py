@@ -13,6 +13,7 @@ from logerr.itertools import (
     sequence,
     sequence_option,
     sequence_result,
+    traverse,
     traverse_option,
     traverse_result,
     values,
@@ -137,3 +138,17 @@ class TestPolymorphicConsistency:
         """partition([Some(x) ...]) == partition_option([Some(x) ...])."""
         items = [Some(x) for x in xs]
         assert partition(items) == partition_option(items)
+
+    @given(st.lists(st.integers(), min_size=1))
+    def test_traverse_matches_traverse_option(self, xs: list[int]):
+        """traverse(xs, lambda x: Some(x * 2)) == traverse_option(xs, lambda x: Some(x * 2))."""
+        assert traverse(xs, lambda x: Some(x * 2)) == traverse_option(
+            xs, lambda x: Some(x * 2)
+        )
+
+    @given(st.lists(st.integers(), min_size=1))
+    def test_traverse_matches_traverse_result(self, xs: list[int]):
+        """traverse(xs, lambda x: Ok(x * 2)) == traverse_result(xs, lambda x: Ok(x * 2))."""
+        assert traverse(xs, lambda x: Ok(x * 2)) == traverse_result(
+            xs, lambda x: Ok(x * 2)
+        )
