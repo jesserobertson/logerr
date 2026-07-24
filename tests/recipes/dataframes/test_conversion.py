@@ -5,7 +5,7 @@ Tests for logerr.recipes.dataframes.conversion module.
 from datetime import datetime
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from logerr.recipes.dataframes.conversion import (
@@ -496,6 +496,7 @@ document_strategy = st.dictionaries(
 class TestConversionProperties:
     """Property-based tests for schema inference and row conversion."""
 
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     @given(st.lists(document_strategy, max_size=10))
     def test_schema_includes_every_key_present_in_any_document(self, documents):
         schema = infer_schema_from_documents(documents)

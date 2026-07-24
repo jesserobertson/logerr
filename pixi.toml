@@ -8,6 +8,7 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 [environments]
 default = ["dev", "docs"]
 dev = ["dev", "retry", "tables"]
+dev-py313 = ["dev", "retry", "tables", "py313"]
 docs = ["docs"]
 retry = ["retry", "dev"]
 tables = ["tables", "dev"]
@@ -25,7 +26,7 @@ clean = { cmd = "python scripts/test.py clean && python scripts/docs.py clean &&
 check-all = { cmd = "python scripts/test.py all && python scripts/quality.py check", description = "Run comprehensive checks (all tests + quality)" }
 
 [dependencies]
-python = ">=3.12,<3.13"
+python = ">=3.12,<3.14"
 loguru = ">=0.7.3,<0.8"
 confection = ">=0.1.5,<0.2"
 
@@ -57,4 +58,7 @@ tenacity = ">=9.1.2,<10"
 [feature.tables.dependencies]
 pymongo = ">=4.0.0,<5"
 pandas = ">=2.0.0,<3"
+
+[feature.py313.dependencies]
+python = ">=3.13,<3.14"
 

@@ -10,15 +10,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        
+  quality:
+    name: Quality (lint, format, typecheck)
+    runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup pixi
       uses: prefix-dev/setup-pixi@v0.8.1
       with:
@@ -27,10 +25,30 @@ jobs:
     - name: Install dependencies
       run: pixi install --environment dev
 
-    - name: Run all checks
-      run: pixi run -e dev check-all
+    - name: Run quality checks
+      run: pixi run -e dev quality
 
-    - name: Run coverage
+  test:
+    name: Test (${{ matrix.os }})
+    needs: quality
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup pixi
+      uses: prefix-dev/setup-pixi@v0.8.1
+      with:
+        environments: dev
+
+    - name: Install dependencies
+      run: pixi install --environment dev
+
+    - name: Run tests with coverage
       run: pixi run -e dev test all
 
     - name: Upload coverage reports
@@ -47,3 +65,51 @@ jobs:
       uses: codecov/test-results-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-py313:
+    name: Test (Python 3.13)
+    needs: quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup pixi
+      uses: prefix-dev/setup-pixi@v0.8.1
+      with:
+        environments: dev-py313
+
+    - name: Install dependencies
+      run: pixi install --environment dev-py313
+
+    - name: Run tests
+      run: pixi run -e dev-py313 test all
+
+  build:
+    name: Build package
+    needs: quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup pixi
+      uses: prefix-dev/setup-pixi@v0.8.1
+      with:
+        environments: dev
+
+    - name: Install dependencies
+      run: pixi install --environment dev
+
+    - name: Build package
+      run: pixi run -e dev build package
+
+    - name: Check package
+      run: pixi run -e dev build check
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
+        retention-days: 7
