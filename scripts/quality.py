@@ -85,27 +85,18 @@ def check() -> None:
 
     # Type checking
     with Status("Running mypy type checking...", console=console, spinner="dots"):
-        try:
-            run_command(["mypy", "logerr"])
-            results["typecheck"] = "✅ Pass"
-        except typer.Exit:
-            results["typecheck"] = "❌ Fail"
+        returncode = run_command(["mypy", "logerr"])
+        results["typecheck"] = "✅ Pass" if returncode == 0 else "❌ Fail"
 
     # Linting
     with Status("Running ruff linting...", console=console, spinner="dots"):
-        try:
-            run_command(["ruff", "check"] + SOURCE_DIRS)
-            results["lint"] = "✅ Pass"
-        except typer.Exit:
-            results["lint"] = "❌ Fail"
+        returncode = run_command(["ruff", "check"] + SOURCE_DIRS)
+        results["lint"] = "✅ Pass" if returncode == 0 else "❌ Fail"
 
     # Format checking
     with Status("Checking code formatting...", console=console, spinner="dots"):
-        try:
-            run_command(["ruff", "format", "--check"] + SOURCE_DIRS)
-            results["format"] = "✅ Pass"
-        except typer.Exit:
-            results["format"] = "❌ Fail"
+        returncode = run_command(["ruff", "format", "--check"] + SOURCE_DIRS)
+        results["format"] = "✅ Pass" if returncode == 0 else "❌ Fail"
 
     # Results table
     from rich.table import Table
