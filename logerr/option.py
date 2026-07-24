@@ -15,9 +15,11 @@ from typing import Any, TypeVar
 from loguru import logger
 
 from .config import get_log_level, should_log
+from .result import Err, Ok, Result
 
 T = TypeVar("T")
 U = TypeVar("U")
+E = TypeVar("E")
 
 
 class Option[T](ABC):
@@ -237,6 +239,42 @@ class Option[T](ABC):
         """
         pass
 
+    @abstractmethod
+    def ok_or(self, err: E) -> Result[T, E]:
+        """Convert this Option into a Result, using a fixed error for Nothing.
+
+        Args:
+            err: The error value to use if this is Nothing.
+
+        Returns:
+            Ok(value) if this is Some, otherwise Err(err).
+
+        Examples:
+            >>> Some(42).ok_or("missing")
+            Ok(42)
+            >>> Nothing.empty().ok_or("missing")  # doctest: +ELLIPSIS
+            Err(...)
+        """
+        pass
+
+    @abstractmethod
+    def ok_or_else(self, err_fn: Callable[[], E]) -> Result[T, E]:
+        """Convert this Option into a Result, computing the error lazily for Nothing.
+
+        Args:
+            err_fn: Function to compute the error value if this is Nothing.
+
+        Returns:
+            Ok(value) if this is Some, otherwise Err(err_fn()).
+
+        Examples:
+            >>> Some(42).ok_or_else(lambda: "missing")
+            Ok(42)
+            >>> Nothing.empty().ok_or_else(lambda: "missing")  # doctest: +ELLIPSIS
+            Err(...)
+        """
+        pass
+
     @classmethod
     def from_nullable(cls, value: T | None) -> Option[T]:
         """Create an Option from a potentially None value."""
@@ -348,6 +386,12 @@ class Some[T](Option[T]):
         except Exception as e:
             return Nothing.from_exception(e)
 
+    def ok_or(self, err: E) -> Result[T, E]:
+        return Ok(self._value)
+
+    def ok_or_else(self, err_fn: Callable[[], E]) -> Result[T, E]:
+        return Ok(self._value)
+
     def __repr__(self) -> str:
         return f"Some({self._value!r})"
 
@@ -423,15 +467,23 @@ class Nothing[T](Option[T]):
     __match_args__ = ("_reason",)
 
     def __init__(
-        self, reason: str = "No value", *, _skip_logging: bool = False
+        self,
+        reason: str = "No value",
+        *,
+        _skip_logging: bool = False,
+        _exception: Exception | None = None,
     ) -> None:
         """Initialize a Nothing option with a reason.
 
         Args:
             reason: Description from why the value is absent.
             _skip_logging: If True, skip automatic logging.
+            _exception: Internal parameter holding the original exception, if
+                this Nothing was constructed via from_exception(). Preserved
+                so unwrap() can re-raise the original exception.
         """
         self._reason = reason
+        self._exception = _exception
         if not _skip_logging:
             self._log_nothing()
 
@@ -490,7 +542,7 @@ class Nothing[T](Option[T]):
             >>> option.is_nothing()
             True
         """
-        return cls(f"Exception: {exception}")
+        return cls(f"Exception: {exception}", _exception=exception)
 
     @classmethod
     def from_none(cls, reason: str = "Value was None") -> Nothing[T]:
@@ -552,7 +604,11 @@ class Nothing[T](Option[T]):
         return True
 
     def unwrap(self) -> T:
-        raise ValueError(f"Called unwrap on Nothing: {self._reason}")
+        match self._exception:
+            case Exception() as e:
+                raise e
+            case _:
+                raise ValueError(f"Called unwrap on Nothing: {self._reason}")
 
     def unwrap_or(self, default: T) -> T:
         return default
@@ -565,10 +621,10 @@ class Nothing[T](Option[T]):
             raise ValueError(f"unwrap_or_else function failed: {e}") from e
 
     def map[U](self, f: Callable[[T], U]) -> Option[U]:
-        return Nothing(self._reason, _skip_logging=True)
+        return Nothing(self._reason, _skip_logging=True, _exception=self._exception)
 
     def then[U](self, f: Callable[[T], Option[U]]) -> Option[U]:
-        return Nothing(self._reason, _skip_logging=True)
+        return Nothing(self._reason, _skip_logging=True, _exception=self._exception)
 
     def or_else(self, f: Callable[[], Option[T]]) -> Option[T]:
         try:
@@ -580,7 +636,16 @@ class Nothing[T](Option[T]):
         return Some(default)
 
     def filter(self, predicate: Callable[[T], bool]) -> Option[T]:
-        return Nothing(self._reason, _skip_logging=True)
+        return Nothing(self._reason, _skip_logging=True, _exception=self._exception)
+
+    def ok_or(self, err: E) -> Result[T, E]:
+        return Err(err)
+
+    def ok_or_else(self, err_fn: Callable[[], E]) -> Result[T, E]:
+        try:
+            return Err(err_fn())
+        except Exception as e:
+            return Err(e)  # type: ignore[return-value]
 
     def __repr__(self) -> str:
         return f"Nothing({self._reason!r})"

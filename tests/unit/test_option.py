@@ -78,6 +78,49 @@ class TestSome:
         assert result.is_nothing()
         assert isinstance(result, Nothing)
 
+    def test_some_ok_or(self):
+        from logerr import Ok
+
+        option = Some(42)
+        result = option.ok_or("error message")
+        assert isinstance(result, Ok)
+        assert result.is_ok()
+        assert result.unwrap() == 42
+
+    def test_some_ok_or_else(self):
+        from logerr import Ok
+
+        option = Some(42)
+        result = option.ok_or_else(lambda: "error message")
+        assert isinstance(result, Ok)
+        assert result.is_ok()
+        assert result.unwrap() == 42
+
+    def test_some_or_else_returns_self(self):
+        option = Some(42)
+        result = option.or_else(lambda: Some(99))
+        assert result is option
+
+    def test_some_or_default_returns_self(self):
+        option = Some(42)
+        result = option.or_default(99)
+        assert result is option
+
+    def test_some_filter_exception_handling(self):
+        """Test that Some.filter handles exceptions raised by the predicate."""
+        option = Some(42)
+        filtered = option.filter(lambda x: 1 / 0 > 0)
+        assert isinstance(filtered, Nothing)
+
+    def test_some_repr(self):
+        assert repr(Some(42)) == "Some(42)"
+
+    def test_some_gt_incomparable_type(self):
+        """Some.__gt__ against an unrelated type should defer via NotImplemented."""
+        some = Some("hello")
+        with pytest.raises(TypeError):
+            assert some > 5
+
 
 class TestNothing:
     """Tests for Nothing class."""
@@ -91,6 +134,77 @@ class TestNothing:
         option = Nothing("test reason")
         with pytest.raises(ValueError, match="Called unwrap on Nothing: test reason"):
             option.unwrap()
+
+    def test_nothing_unwrap_reraises_original_exception(self):
+        """Nothing.unwrap should re-raise the original exception when constructed
+        from_exception, mirroring Result.Err.unwrap's behaviour."""
+        original = ValueError("boom")
+        option = Nothing.from_exception(original)
+        with pytest.raises(ValueError) as exc_info:
+            option.unwrap()
+        assert exc_info.value is original
+
+    def test_nothing_ok_or(self):
+        from logerr import Err
+
+        option = Nothing("test reason")
+        result = option.ok_or("error message")
+        assert isinstance(result, Err)
+        assert result.is_err()
+        assert result.unwrap_err() == "error message"
+
+    def test_nothing_ok_or_else(self):
+        from logerr import Err
+
+        option = Nothing("test reason")
+        result = option.ok_or_else(lambda: "error message")
+        assert isinstance(result, Err)
+        assert result.is_err()
+        assert result.unwrap_err() == "error message"
+
+    def test_nothing_ok_or_else_exception_handling(self):
+        """Test that Nothing.ok_or_else handles exceptions raised by err_fn."""
+        from logerr import Err
+
+        option = Nothing.empty()
+
+        def failing_err_fn():
+            raise ValueError("boom")
+
+        result = option.ok_or_else(failing_err_fn)
+        assert isinstance(result, Err)
+        assert isinstance(result.unwrap_err(), ValueError)
+
+    def test_nothing_or_else_exception_handling(self):
+        """Test that Nothing.or_else handles exceptions raised by the callback."""
+        option = Nothing.empty()
+
+        def failing_recovery():
+            raise RuntimeError("recovery failed")
+
+        result = option.or_else(failing_recovery)
+        assert isinstance(result, Nothing)
+
+    def test_nothing_repr(self):
+        assert repr(Nothing("test reason")) == "Nothing('test reason')"
+
+    def test_nothing_lt_incomparable_type(self):
+        """Nothing.__lt__ against an unrelated type defers via NotImplemented."""
+        nothing = Nothing.empty()
+        with pytest.raises(TypeError):
+            assert nothing < 5
+
+    def test_nothing_gt_incomparable_type(self):
+        """Nothing.__gt__ against an unrelated type defers via NotImplemented."""
+        nothing = Nothing.empty()
+        with pytest.raises(TypeError):
+            assert nothing > 5
+
+    def test_nothing_ge_some_is_false(self):
+        """Nothing is never >= a Some, hitting Nothing.__ge__'s fallback branch."""
+        nothing = Nothing.empty()
+        some = Some(42)
+        assert not (nothing >= some)
 
     def test_nothing_unwrap_or(self):
         option = Nothing("test reason")
@@ -184,6 +298,28 @@ class TestOptionFactories:
     def test_option_from_predicate_exception(self):
         option = logerr.option.from_predicate(42, lambda x: 1 / 0)
         assert isinstance(option, Nothing)
+
+    def test_option_of_classmethod_success(self):
+        from logerr import Option
+
+        option = Option.of(lambda: 42)
+        assert isinstance(option, Some)
+        assert option.unwrap() == 42
+
+    def test_option_of_classmethod_exception(self):
+        """Test the Option.of() ABC classmethod's exception-handling branch."""
+        from logerr import Option
+
+        option = Option.of(lambda: 1 / 0)
+        assert isinstance(option, Nothing)
+
+    def test_option_from_predicate_classmethod(self):
+        """Test the Option.from_predicate() ABC classmethod delegates correctly."""
+        from logerr import Option
+
+        option = Option.from_predicate(42, lambda x: x > 30)
+        assert isinstance(option, Some)
+        assert option.unwrap() == 42
 
 
 class TestLogging:

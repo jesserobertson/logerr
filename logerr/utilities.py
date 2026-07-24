@@ -62,7 +62,9 @@ def execute[T](
             case "option":
                 return Nothing.from_exception(e)
             case "result":
-                return Err.from_exception(default_error or e)
+                return Err.from_exception(
+                    default_error if default_error is not None else e
+                )
 
 
 def nullable[T](

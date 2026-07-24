@@ -40,6 +40,30 @@ class TestExecute:
         result = execute(lambda: 1 / 0, on_exception="option")
         assert result.is_nothing()
 
+    def test_execute_falsy_default_error_zero(self):
+        """A falsy default_error (0) must still be honored, not discarded via `or`."""
+        result = execute(lambda: 1 / 0, default_error=0)
+        assert result.is_err()
+        assert result.unwrap_err() == 0
+
+    def test_execute_falsy_default_error_empty_string(self):
+        """A falsy default_error ("") must still be honored, not discarded via `or`."""
+        result = execute(lambda: 1 / 0, default_error="")
+        assert result.is_err()
+        assert result.unwrap_err() == ""
+
+    def test_execute_falsy_default_error_false(self):
+        """A falsy default_error (False) must still be honored, not discarded via `or`."""
+        result = execute(lambda: 1 / 0, default_error=False)
+        assert result.is_err()
+        assert result.unwrap_err() is False
+
+    def test_execute_no_default_error_uses_exception(self):
+        """When default_error is not provided, the caught exception is used."""
+        result = execute(lambda: 1 / 0)
+        assert result.is_err()
+        assert isinstance(result.unwrap_err(), ZeroDivisionError)
+
 
 class TestNullable:
     """Test the nullable utility function."""
@@ -75,6 +99,31 @@ class TestNullable:
         assert result.is_err()
         assert isinstance(result.unwrap_err(), RuntimeError)
         assert str(result.unwrap_err()) == "custom"
+
+    def test_nullable_error_factory_non_callable_value(self):
+        """Test nullable with a plain (non-callable) error value, not a factory."""
+        result = nullable(None, return_type="result", error_factory="plain error")
+        assert result.is_err()
+        assert result.unwrap_err() == "plain error"
+
+    def test_nullable_none_value_option_log_disabled(self):
+        """Test nullable with None value and log_absence disabled."""
+        result = nullable(None, log_absence=False)
+        assert result.is_nothing()
+
+
+class TestLogHelper:
+    """Additional coverage for the log() utility's disabled-logging branch."""
+
+    def test_log_noop_when_logging_disabled(self):
+        from logerr import configure, reset_config
+
+        configure(enabled=False)
+        try:
+            # Should return without raising, exercising the early-return branch.
+            log("Should not be logged")
+        finally:
+            reset_config()
 
 
 class TestLog:

@@ -53,6 +53,26 @@ class TestOk:
         mapped = result.map(lambda x: 1 / 0)  # Will raise ZeroDivisionError
         assert isinstance(mapped, Err)
 
+    def test_ok_unwrap_err_raises(self):
+        result = Ok(42)
+        with pytest.raises(RuntimeError, match="Called unwrap_err on Ok: 42"):
+            result.unwrap_err()
+
+    def test_ok_or_else_returns_self_value(self):
+        result = Ok(42)
+        recovered = result.or_else(lambda e: Ok(0))
+        assert isinstance(recovered, Ok)
+        assert recovered.unwrap() == 42
+
+    def test_ok_map_err_returns_ok_unchanged(self):
+        result = Ok(42)
+        mapped = result.map_err(str)
+        assert isinstance(mapped, Ok)
+        assert mapped.unwrap() == 42
+
+    def test_ok_repr(self):
+        assert repr(Ok(42)) == "Ok(42)"
+
 
 class TestErr:
     """Tests for Err class."""
@@ -82,6 +102,88 @@ class TestErr:
         assert isinstance(result, Err)
         assert result._error == exception
 
+    def test_err_unwrap_non_exception_error_raises_runtime_error(self):
+        """Err.unwrap() falls back to RuntimeError when the error isn't an Exception."""
+        result = Err("plain string error")
+        with pytest.raises(
+            RuntimeError, match="Called unwrap on Err: plain string error"
+        ):
+            result.unwrap()
+
+    def test_err_unwrap_or_else_exception_handling(self):
+        """Test that Err.unwrap_or_else raises RuntimeError if the callback fails."""
+        result = Err("original error")
+
+        def failing_func(e):
+            raise ValueError("callback failed")
+
+        with pytest.raises(RuntimeError, match="unwrap_or_else function failed"):
+            result.unwrap_or_else(failing_func)
+
+    def test_err_map_err_exception_handling(self):
+        """Test that Err.map_err handles exceptions raised by the transform."""
+        result = Err("original error")
+
+        def failing_transform(e):
+            raise ValueError("transform failed")
+
+        mapped = result.map_err(failing_transform)
+        assert isinstance(mapped, Err)
+        assert isinstance(mapped._error, ValueError)
+
+    def test_err_or_else_recovers(self):
+        """Test that Err.or_else invokes the recovery function."""
+        result = Err("original error")
+        recovered = result.or_else(lambda e: Ok(99))
+        assert isinstance(recovered, Ok)
+        assert recovered.unwrap() == 99
+
+    def test_err_or_else_exception_handling(self):
+        """Test that Err.or_else handles exceptions raised by the recovery function."""
+        result = Err("original error")
+
+        def failing_recovery(e):
+            raise RuntimeError("recovery failed")
+
+        recovered = result.or_else(failing_recovery)
+        assert isinstance(recovered, Err)
+        assert isinstance(recovered._error, RuntimeError)
+
+    def test_err_repr(self):
+        assert repr(Err("boom")) == "Err('boom')"
+
+    def test_err_lt_type_error_returns_not_implemented(self):
+        """Err.__lt__ should defer to NotImplemented when values aren't orderable."""
+
+        class NonComparable:
+            pass
+
+        err1 = Err(NonComparable())
+        err2 = Err(NonComparable())
+        with pytest.raises(TypeError):
+            assert err1 < err2
+
+    def test_err_lt_incomparable_type_returns_not_implemented(self):
+        err = Err("error")
+        with pytest.raises(TypeError):
+            assert err < 5
+
+    def test_err_gt_type_error_returns_not_implemented(self):
+        """Err.__gt__ should defer to NotImplemented when values aren't orderable."""
+
+        class NonComparable:
+            pass
+
+        err1 = Err(NonComparable())
+        err2 = Err(NonComparable())
+        with pytest.raises(TypeError):
+            assert err1 > err2
+
+    def test_err_gt_incomparable_type_returns_not_implemented(self):
+        err = Err("error")
+        with pytest.raises(TypeError):
+            assert err > 5
+
 
 class TestResultFactories:
     """Tests for Result factory functions."""
@@ -95,6 +197,26 @@ class TestResultFactories:
         result = logerr.result.of(lambda: 1 / 0)
         assert isinstance(result, Err)
         assert isinstance(result._error, ZeroDivisionError)
+
+    def test_result_from_optional_classmethod(self):
+        """Test the Result.from_optional() ABC classmethod delegates correctly."""
+        from logerr import Result
+
+        result = Result.from_optional("value", "was none")
+        assert isinstance(result, Ok)
+        assert result.unwrap() == "value"
+
+        result_none = Result.from_optional(None, "was none")
+        assert isinstance(result_none, Err)
+        assert result_none.unwrap_err() == "was none"
+
+    def test_result_from_predicate_classmethod(self):
+        """Test the Result.from_predicate() ABC classmethod delegates correctly."""
+        from logerr import Result
+
+        result = Result.from_predicate(42, lambda x: x > 30, "too small")
+        assert isinstance(result, Ok)
+        assert result.unwrap() == 42
 
 
 class TestLogging:

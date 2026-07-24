@@ -58,8 +58,12 @@ class TestEdgeCases:
         """Test that Nothing preserves the reason string."""
         nothing = Nothing(reason, _skip_logging=True)
         assert nothing.is_nothing()
-        # Reason is preserved in repr
-        assert reason in repr(nothing)
+        # Reason is preserved verbatim on the instance. Note: repr() is not
+        # used for this check because Python escapes non-printable/unassigned
+        # unicode code points (e.g. some astral-plane characters) in repr(),
+        # which would make a naive substring check fail even though the
+        # reason itself is preserved correctly.
+        assert nothing._reason == reason
 
     @settings(max_examples=50)  # Reduce examples for exception tests
     @given(st.text())
