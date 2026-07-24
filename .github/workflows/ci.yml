@@ -30,8 +30,8 @@ jobs:
     - name: Run all checks
       run: pixi run -e dev check-all
 
-    - name: Run coverage 
-      run: pixi run -e dev test --cov-report=xml
+    - name: Run coverage
+      run: pixi run -e dev test all
 
     - name: Upload coverage reports
       if: matrix.os == 'ubuntu-latest'
