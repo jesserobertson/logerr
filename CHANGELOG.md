@@ -71,6 +71,19 @@ a 1.0 stability commitment is made.
   standard `itertools` toolkit already work correctly on `Option`/`Result`
   directly, with no bespoke `logerr` `zip()` wrapper that could behave
   differently from the real one depending on what you pass it.
+- `logerr.itertools` - collection-level operations that plain `itertools`
+  has no equivalent for: `sequence_option`/`sequence_result` (fold a
+  collection of Options/Results into one, short-circuiting on the first
+  failure), `traverse_option`/`traverse_result` (map then sequence, never
+  calling the function past the first failure), `partition_option`/
+  `partition_result` (split into successes/failures without
+  short-circuiting), and `values` (a named wrapper for the
+  `itertools.chain.from_iterable` "flatten to just the present/Ok values"
+  trick). `sequence`/`traverse`/`partition` also have `@overload`-typed
+  polymorphic wrappers that dispatch on runtime type, raising `ValueError`
+  on empty input (ambiguous - use the `_option`/`_result` function
+  directly instead). `Option`/`Result` gained matching `sequence()`/
+  `traverse()` classmethod factories.
 - `CHANGELOG.md` (this file).
 
 ### Fixed

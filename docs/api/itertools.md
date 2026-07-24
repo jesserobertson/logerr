@@ -1,0 +1,3 @@
+# Itertools
+
+::: logerr.itertools

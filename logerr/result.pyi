@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any, TypeVar
 
 from .option import Option
@@ -94,6 +94,18 @@ class Result[T, E](ABC):
         cls, value: T, predicate: Callable[[T], bool], error: E
     ) -> Result[T, E]:
         """Create a Result based on whether a predicate is satisfied."""
+        ...
+
+    @classmethod
+    def sequence(cls, items: Iterable[Result[T, E]]) -> Result[list[T], E]:
+        """Fold an iterable of Results into one Result of a list."""
+        ...
+
+    @classmethod
+    def traverse[U](
+        cls, items: Iterable[U], func: Callable[[U], Result[T, E]]
+    ) -> Result[list[T], E]:
+        """Map func over items and sequence the results."""
         ...
 
 class Ok[T, E](Result[T, E]):

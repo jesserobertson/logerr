@@ -44,6 +44,7 @@ nav:
     - Configuration: api/config.md
     - Utilities: api/utilities.md
     - Functools: api/functools.md
+    - Itertools: api/itertools.md
 
 plugins:
   - search

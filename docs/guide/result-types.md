@@ -243,6 +243,35 @@ list(Err("boom"))                      # []
 list(zip(Ok(1), Ok("a")))              # [(1, "a")]
 ```
 
+### Collecting Results: `sequence()` and `traverse()`
+
+```python
+from logerr import Result, Ok, Err
+
+# sequence() - fold a list of Results into one Result of a list
+Result.sequence([Ok(1), Ok(2), Ok(3)])   # Ok([1, 2, 3])
+Result.sequence([Ok(1), Err("boom")])    # Err("boom")
+
+# traverse() - map a function returning Result over a list, then sequence
+Result.traverse([1, 2, 3], lambda x: Ok(x * 2))  # Ok([2, 4, 6])
+```
+
+Free functions with the same behavior are also available from
+`logerr.itertools` (`sequence_result`, `traverse_result`), along with
+`partition_result()` (collects every Ok value *and* every Err value,
+without short-circuiting) and `values()` (a named wrapper around the
+`itertools.chain.from_iterable` trick below):
+
+```python
+from logerr.itertools import partition_result, sequence_result, values
+
+partition_result([Ok(1), Err("boom"), Ok(3)])  # ([1, 3], ['boom'])
+
+# itertools.chain.from_iterable already "flattens to just the Ok values"
+# for free, since Result is iterable - values() just names it:
+list(values([Ok(1), Err("boom"), Ok(3)]))      # [1, 3]
+```
+
 ## Method Chaining
 
 Results support fluent method chaining for complex operations:

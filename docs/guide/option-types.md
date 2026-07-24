@@ -258,6 +258,35 @@ list(Nothing.empty())                  # []
 list(zip(Some(1), Some("a")))          # [(1, "a")]
 ```
 
+### Collecting Options: `sequence()` and `traverse()`
+
+```python
+from logerr import Option, Some, Nothing
+
+# sequence() - fold a list of Options into one Option of a list
+Option.sequence([Some(1), Some(2), Some(3)])   # Some([1, 2, 3])
+Option.sequence([Some(1), Nothing.empty()])    # Nothing
+
+# traverse() - map a function returning Option over a list, then sequence
+Option.traverse([1, 2, 3], lambda x: Some(x * 2))  # Some([2, 4, 6])
+```
+
+Free functions with the same behavior are also available from
+`logerr.itertools` (`sequence_option`, `traverse_option`), along with
+`partition_option()` (collects every present value *and* a count of how
+many were `Nothing`, without short-circuiting) and `values()` (a named
+wrapper around the `itertools.chain.from_iterable` trick below):
+
+```python
+from logerr.itertools import partition_option, sequence_option, values
+
+partition_option([Some(1), Nothing.empty(), Some(3)])  # ([1, 3], 1)
+
+# itertools.chain.from_iterable already "flattens to just the present
+# values" for free, since Option is iterable - values() just names it:
+list(values([Some(1), Nothing.empty(), Some(3)]))      # [1, 3]
+```
+
 ## Method Chaining
 
 Options support fluent method chaining for complex operations:

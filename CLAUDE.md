@@ -349,6 +349,24 @@ def retry_operation(max_attempts: int | None = None) -> None:
 
 `Option`/`Result` are also iterable now (`__iter__` yields the value 0 or 1 times - `Nothing`/`Err` yield nothing, `Some`/`Ok` yield their value once), matching Rust's own `Option::iter()`/`Result::iter()`. This means Python's own `zip()` and the standard `itertools` toolkit already work correctly on `Option`/`Result` values directly - there's deliberately no bespoke `logerr` `zip()` wrapper that could behave differently from the real one depending on what you pass it.
 
+### **Collection Operations: `logerr.itertools`**
+
+`logerr.itertools` adds what plain `itertools` has no equivalent for -
+folding a *collection* of `Option`/`Result` values into one, with
+short-circuit-on-first-failure semantics: `sequence_option`/
+`sequence_result`, `traverse_option`/`traverse_result` (map then sequence,
+short-circuiting), and `partition_option`/`partition_result` (collect
+successes *and* failures, no short-circuit). `sequence`/`traverse`/
+`partition` also exist as `@overload`-typed polymorphic wrappers
+dispatching on runtime type (raising `ValueError` on empty input, since
+there's no element to dispatch on - use the `_option`/`_result` function
+directly in that case). `values()` names the existing free
+`itertools.chain.from_iterable` interop trick (flatten to just the
+present/Ok values). `Option.sequence`/`Option.traverse` and
+`Result.sequence`/`Result.traverse` classmethod factories delegate to the
+free functions, mirroring the existing `Option.from_nullable`/`Result.of`
+classmethod-factory pattern.
+
 ## API Structure
 
 The library provides a clean, namespaced API:

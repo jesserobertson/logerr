@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from typing import TypeVar
 
 from .result import Result
@@ -104,6 +104,18 @@ class Option[T](ABC):
         error_message: str | None = None,
     ) -> Option[T]:
         """Create an Option based on whether a predicate is satisfied."""
+        ...
+
+    @classmethod
+    def sequence(cls, items: Iterable[Option[T]]) -> Option[list[T]]:
+        """Fold an iterable of Options into one Option of a list."""
+        ...
+
+    @classmethod
+    def traverse[U](
+        cls, items: Iterable[U], func: Callable[[U], Option[T]]
+    ) -> Option[list[T]]:
+        """Map func over items and sequence the results."""
         ...
 
 class Some[T](Option[T]):
