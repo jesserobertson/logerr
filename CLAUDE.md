@@ -88,11 +88,10 @@ logerr/
 │   ├── option.py               # Option<T>, Some<T>, Nothing implementation
 │   ├── result.py               # Result<T, E>, Ok<T>, Err<E> implementation
 │   ├── config.py               # Core configuration (basic enabled/level)
-│   ├── utilities.py            # Core utility functions (execute, nullable, log)
-│   └── recipes/                # Optional extended functionality
+│   ├── utilities.py            # All utility functions (execute, nullable, log, validate, resolve, chain, attribute, error, pipe, try_chain)
+│   └── recipes/                # Optional extended functionality (heavy deps only)
 │       ├── __init__.py
 │       ├── config.py            # Advanced per-library/confection config
-│       ├── utilities.py         # Advanced utils (validate, resolve, chain, attribute, error, pipe, try_chain)
 │       ├── retry.py             # Retry decorators/utilities (feature: retry, needs tenacity)
 │       └── dataframes/          # DataFrame/Mongo conversion (feature: tables, needs pandas/pymongo)
 │           ├── __init__.py
@@ -217,11 +216,11 @@ def load_config(path: str) -> Result[Config, Exception]:
 - Prefer `Result.of`, `Result.from_predicate`, `Option.from_nullable` over manual construction
 - Use method chaining (.then, .map, .filter) for sequential operations
 - Avoid deep nesting - flatten with functional composition
-- **Use utility functions from `logerr.utilities` (core) or `logerr.recipes.utilities` (advanced) for common patterns**
+- **Use utility functions from `logerr.utilities` for common patterns**
 
 ## Common Functional Patterns & Utilities
 
-`logerr.utilities` provides the core utility functions (`execute`, `nullable`, `log`) used by the base library. `logerr.recipes.utilities` (part of the optional `recipes` functionality) adds more advanced patterns (`validate`, `resolve`, `chain`, `attribute`, `error`, `pipe`, `try_chain`). Note that `logerr/utilities.py` cannot itself import from `logerr.recipes` — that would be a circular import — so the split is a real architectural boundary, not just an organizational choice.
+`logerr.utilities` provides all of logerr's functional utility functions - `execute`, `nullable`, `log`, `validate`, `resolve`, `chain`, `attribute`, `error`, `pipe`, `try_chain`. None of them depend on tenacity/pandas/pymongo, so they all live in core rather than being split across `recipes` - there's nothing "advanced" about them dependency-wise.
 
 ### **Safe Execution Pattern**
 Use `execute()` instead of manual try/catch blocks:
@@ -262,11 +261,11 @@ def validate_required_field(value: str | None) -> Result[str, ValueError]:
 ```
 
 ### **Validation with Predicates**
-Use `validate()` (from `logerr.recipes.utilities`) for consistent validation logic:
+Use `validate()` for consistent validation logic:
 
 ```python
 # Good: Reusable validation pattern
-from logerr.recipes.utilities import validate, error
+from logerr.utilities import validate, error
 
 def validate_log_level(level: str) -> Result[str, ValueError]:
     valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -278,11 +277,11 @@ def validate_log_level(level: str) -> Result[str, ValueError]:
 ```
 
 ### **Safe Attribute Access**
-Use `attribute()` (from `logerr.recipes.utilities`) for exception-safe attribute access:
+Use `attribute()` for exception-safe attribute access:
 
 ```python
 # Good: Safe attribute access
-from logerr.recipes.utilities import attribute
+from logerr.utilities import attribute
 
 func_name = attribute(func, "__name__", "callable")
 logger.debug(f"Executing {func_name}")
@@ -307,11 +306,11 @@ def handle_error(error: Exception) -> None:
 ```
 
 ### **Parameter Resolution**
-Use `resolve()` (from `logerr.recipes.utilities`) for consistent parameter handling:
+Use `resolve()` for consistent parameter handling:
 
 ```python
 # Good: Functional parameter resolution
-from logerr.recipes.utilities import resolve
+from logerr.utilities import resolve
 
 def retry_operation(max_attempts: int | None = None) -> None:
     actual_attempts = resolve(
@@ -323,21 +322,16 @@ def retry_operation(max_attempts: int | None = None) -> None:
 
 ### **Available Utility Functions**
 
-**`logerr.utilities`** (core, no extra dependencies):
+**`logerr.utilities`** (all core, no extra dependencies):
 
 | Function | Purpose | Common Use Cases |
 |----------|---------|------------------|
 | `execute()` | Execute callables with automatic Result/Option wrapping | Factory functions, risky operations |
 | `nullable()` | Convert None values to appropriate types | Configuration loading, optional parameters |
 | `log()` | Context-aware logging with caller information | Error logging, debugging |
-
-**`logerr.recipes.utilities`** (advanced, part of optional recipes functionality):
-
-| Function | Purpose | Common Use Cases |
-|----------|---------|------------------|
 | `validate()` | Predicate-based validation with consistent error handling | Input validation, constraint checking |
 | `resolve()` | Parameter resolution with validation | Function parameters, configuration merging |
-| `chain()` | Exception-safe method chaining | Monadic operations (map, then) |
+| `chain()` | Exception-safe method chaining | Recovering the old catch-and-convert behavior for map/then/filter |
 | `attribute()` | Safe attribute access | Getting function names, object properties |
 | `error()` | Standardized validation error messages | Consistent error formatting |
 | `pipe()` | Pipeline-style composition of functions | Multi-step transforms without nesting |

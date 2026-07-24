@@ -55,11 +55,10 @@ class TestRecipesImports:
 
         # Should have all modules available
         assert hasattr(logerr.recipes, "retry")
-        assert hasattr(logerr.recipes, "utilities")
         assert hasattr(logerr.recipes, "config")
 
         # Check __all__ contains expected modules
-        expected_modules = {"retry", "utilities", "config"}
+        expected_modules = {"retry", "config"}
         assert all(module in logerr.recipes.__all__ for module in expected_modules)
 
     def test_recipes_imports_without_tenacity(self):
@@ -77,10 +76,7 @@ class TestRecipesImports:
             key for key in sys.modules.keys() if key.startswith("logerr.recipes")
         ]
         for module in modules_to_clear:
-            if (
-                module != "logerr.recipes.config"
-                and module != "logerr.recipes.utilities"
-            ):
+            if module != "logerr.recipes.config":
                 del sys.modules[module]
 
         with patch("builtins.__import__", side_effect=mock_import):
@@ -99,7 +95,6 @@ class TestRecipesImports:
 
                 # Should not have retry in __all__
                 assert "retry" not in logerr.recipes.__all__
-                assert "utilities" in logerr.recipes.__all__
                 assert "config" in logerr.recipes.__all__
 
     def test_recipes_imports_without_dataframes_deps(self):
@@ -122,12 +117,11 @@ class TestRecipesImports:
         # In dev environment, all modules should be available
         # Note: retry may not be accessible if imported under different conditions
         # but we can test the basic structure
-        assert hasattr(logerr.recipes, "utilities")
         assert hasattr(logerr.recipes, "config")
         assert hasattr(logerr.recipes, "dataframes")
 
         # Check __all__ contains expected modules in dev environment
-        expected_modules = {"retry", "utilities", "config", "dataframes"}
+        expected_modules = {"retry", "config", "dataframes"}
         actual_modules = set(logerr.recipes.__all__)
         assert expected_modules.issubset(actual_modules)
 

@@ -1,27 +1,27 @@
 """
 logerr.recipes: Optional extended functionality for logerr.
 
-This module provides additional utilities and patterns for logerr that
-may not be needed by all users. Install with:
+This module provides additional patterns for logerr that may not be needed
+by all users, gated behind optional heavy dependencies. Install with:
 
     pixi run -e retry   # tenacity-based retry patterns
     pixi run -e tables  # pymongo/pandas dataframe conversion
 
 Available modules:
 - retry: Comprehensive retry patterns with tenacity integration
-- utilities: Advanced functional utilities (validate, resolve, chain, etc.)
 - config: Advanced configuration with per-library settings and file loading
 - dataframes: NoSQL to DataFrame conversion with data quality logging
 
+For general-purpose functional utilities (validate, resolve, chain,
+attribute, error, pipe, try_chain), see logerr.utilities - they have no
+dependency on tenacity/pandas/pymongo, so they live in core.
+
 Usage:
-    from logerr.recipes import retry, utilities, config, dataframes
+    from logerr.recipes import retry, config, dataframes
 
     @retry.on_err(max_attempts=3)
     def flaky_operation() -> Result[int, str]:
         return Ok(42)
-
-    # Advanced utilities
-    from logerr.recipes.utilities import validate, pipe
 
     # Advanced configuration
     from logerr.recipes.config import configure_advanced
@@ -33,7 +33,7 @@ Usage:
 """
 
 # Always available modules
-from . import config, utilities
+from . import config
 
 # Import dataframes module when dependencies are available
 try:
@@ -48,9 +48,9 @@ try:
     from . import retry
 
     if dataframes_available:
-        __all__ = ["retry", "utilities", "config", "dataframes"]
+        __all__ = ["retry", "config", "dataframes"]
     else:
-        __all__ = ["retry", "utilities", "config"]
+        __all__ = ["retry", "config"]
 except ImportError:
     # Provide helpful error message when tenacity is missing for retry
     import warnings
@@ -61,9 +61,9 @@ except ImportError:
         stacklevel=2,
     )
     if dataframes_available:
-        __all__ = ["utilities", "config", "dataframes"]
+        __all__ = ["config", "dataframes"]
     else:
-        __all__ = ["utilities", "config"]
+        __all__ = ["config"]
 
 # Warn about missing dataframes dependencies
 if not dataframes_available:

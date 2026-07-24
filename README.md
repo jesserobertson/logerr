@@ -93,14 +93,14 @@ pixi run -e tables
 # or: pip install "logerr[tables]"
 
 # Use in your code
-from logerr.recipes import retry, utilities, config, dataframes
+from logerr.recipes import retry, config, dataframes
 
 @retry.on_err(max_attempts=3)
 def flaky_operation() -> Result[int, str]:
     return Ok(42)
 
-# Advanced utilities
-from logerr.recipes.utilities import validate, pipe, try_chain
+# Functional utilities (no extra install needed - these are core)
+from logerr.utilities import validate, pipe, try_chain
 
 # Advanced configuration
 config.configure_advanced({
@@ -226,8 +226,7 @@ print(result)
 
 ```python
 from logerr import Result, Ok, Err  
-from logerr.utilities import execute
-from logerr.recipes.utilities import validate, resolve
+from logerr.utilities import execute, validate, resolve
 import json
 from pathlib import Path
 
@@ -268,8 +267,7 @@ config = (
 
 ```python
 from logerr import Option
-from logerr.utilities import nullable
-from logerr.recipes.utilities import validate, attribute
+from logerr.utilities import nullable, validate, attribute
 
 def process_user_data(data: dict) -> Option[str]:
     """Extract and format user display name using functional utilities."""

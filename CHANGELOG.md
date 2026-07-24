@@ -10,6 +10,13 @@ a 1.0 stability commitment is made.
 
 ### Breaking Changes
 
+- `logerr.recipes.utilities` removed entirely. Its 7 functions (`validate`,
+  `resolve`, `chain`, `attribute`, `error`, `pipe`, `try_chain`) had no
+  dependency on tenacity/pandas/pymongo - the `recipes` split served no
+  dependency-isolation purpose for them, so they moved into core
+  `logerr.utilities` alongside `execute`/`nullable`/`log`. Update
+  `from logerr.recipes.utilities import ...` to `from logerr.utilities import ...`.
+
 - `Some.map`/`.then`/`.filter`, `Nothing.or_else`/`.ok_or_else`, `Ok.map`/`.then`,
   and `Err.map_err`/`.or_else` no longer catch exceptions raised by the
   function passed to them. Previously, any exception (including bugs like a

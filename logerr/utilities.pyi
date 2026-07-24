@@ -61,3 +61,61 @@ def log(
 ) -> None:
     """Log a message with basic context from calling frame."""
     ...
+
+@overload
+def validate[T, E](
+    value: T,
+    predicate: Callable[[T], bool],
+    *,
+    error_factory: Callable[[T], E] | E,
+    return_type: Literal["result"] = "result",
+    capture_exceptions: bool = True,
+) -> Result[T, E | Exception]:
+    """Validate values using predicates with flexible error handling."""
+    ...
+
+@overload
+def validate[T, E](
+    value: T,
+    predicate: Callable[[T], bool],
+    *,
+    error_factory: Callable[[T], E] | E,
+    return_type: Literal["option"],
+    capture_exceptions: bool = True,
+) -> Option[T]:
+    """Validate values using predicates with flexible error handling."""
+    ...
+
+def resolve[T](
+    provided: T | None, default: T, *, validator: Callable[[T], bool] | None = None
+) -> T:
+    """Resolve parameter values using Option chaining with validation."""
+    ...
+
+def chain[T, U, M](
+    value: T,
+    operation: Callable[[T], U],
+    *,
+    error_wrapper: Callable[[Exception], M],
+    success_wrapper: Callable[[U], M],
+) -> M:
+    """Execute operations in a chain while safely handling exceptions."""
+    ...
+
+def attribute(obj: Any, attr_name: str, default: Any = "unknown") -> Any:
+    """Safely get an attribute value with functional error handling."""
+    ...
+
+def error(
+    value: Any, constraint: str, valid_options: set[Any] | None = None
+) -> ValueError:
+    """Create a standardized validation error message."""
+    ...
+
+def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Any:
+    """Apply a series of functions in pipeline fashion."""
+    ...
+
+def try_chain[T](*callables: Callable[[], T]) -> Option[T]:
+    """Try a series of callables until one succeeds."""
+    ...

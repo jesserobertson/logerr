@@ -225,7 +225,6 @@ logerr/recipes/__init__.py
 logerr/recipes/config.py
 logerr/recipes/retry.py
 logerr/recipes/retry.pyi
-logerr/recipes/utilities.py
 logerr/recipes/dataframes/...
 ```
 
