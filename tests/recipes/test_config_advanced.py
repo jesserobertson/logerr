@@ -2,8 +2,8 @@
 Comprehensive tests for logerr.recipes.config advanced configuration.
 """
 
-import os
 import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from logerr.recipes.config import (
@@ -191,7 +191,7 @@ otherlib = {"enabled": false}
             assert config.libraries["mylib"]["level"] == "DEBUG"
             assert config.libraries["otherlib"]["enabled"] is False
         finally:
-            os.unlink(config_path)
+            Path(config_path).unlink()
 
     def test_configure_from_confection_missing_file(self):
         """Test error handling when config file doesn't exist."""
@@ -221,7 +221,7 @@ key = "value"
             assert config.enabled is True  # Should remain default
             assert config.level == "ERROR"  # Should remain default
         finally:
-            os.unlink(config_path)
+            Path(config_path).unlink()
 
     def test_configure_from_confection_invalid_config_format(self):
         """Test error handling with malformed config file."""
@@ -241,7 +241,7 @@ level = "INVALID_LEVEL"
             error = result.unwrap_err()
             assert "Invalid log level" in str(error) or "INVALID_LEVEL" in str(error)
         finally:
-            os.unlink(config_path)
+            Path(config_path).unlink()
 
     def test_configure_from_confection_file_read_error(self):
         """Test handling of file read errors."""
@@ -259,7 +259,7 @@ level = "INVALID_LEVEL"
                 assert result.is_err()
                 assert isinstance(result.unwrap_err(), Exception)
             finally:
-                os.unlink(config_path)
+                Path(config_path).unlink()
 
 
 class TestLibrarySpecificConfig:

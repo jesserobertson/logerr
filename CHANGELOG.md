@@ -116,6 +116,18 @@ a 1.0 stability commitment is made.
   logerr/__init__.py ever diverge. Wired into `check-all` (so it also runs
   in the pre-commit hook) and as a dedicated CI step.
 
+- `mypy` config replaced with `strict = true` - the codebase was already
+  clean under full strict mode (confirmed by running it directly before
+  adopting), so there was no reason to hand-pick a subset of flags.
+- `ruff` select list gained `SIM` (flake8-simplify), `RUF` (ruff-specific),
+  `N` (pep8-naming), and `PTH` (flake8-use-pathlib). Deliberately left out
+  `PIE`/`RET`/`PT`/`ARG` - each surfaced 30-190+ findings, mostly stylistic
+  churn (unused mock-callback args, `else` after `return`) rather than real
+  issues, too invasive for this pass. Fixed the 25 findings the adopted
+  categories surfaced, including 6 stale `# type: ignore[no-any-return]`
+  comments in mongo.py that `warn_unused_ignores` caught - dead weight left
+  over from before `execute()` got precise overloads.
+
 ### Changed (CI/tooling)
 
 - `.pre-commit-config.yaml`: removed the separate always-run `ruff-check`/

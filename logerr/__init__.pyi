@@ -16,16 +16,16 @@ from .result import Result as Result
 __version__: str
 
 __all__ = [
-    "Result",
-    "Ok",
     "Err",
-    "Option",
-    "Some",
     "Nothing",
+    "Ok",
+    "Option",
+    "Result",
+    "Some",
     "configure",
     "get_config",
+    "option",
     "reset_config",
     "result",
-    "option",
     "utilities",
 ]

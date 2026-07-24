@@ -72,7 +72,7 @@ def from_mongo(
             log_level="ERROR",
             extra_context={"collection": operation_name, "query": str(query)[:200]},
         )
-        return query_result  # type: ignore[no-any-return]
+        return query_result
 
     documents = query_result.unwrap()
 
@@ -142,7 +142,7 @@ def from_mongo_cursor(
             log_level="ERROR",
             extra_context={"operation": report_name},
         )
-        return documents_result  # type: ignore[no-any-return]
+        return documents_result
 
     documents = documents_result.unwrap()
 
@@ -250,7 +250,7 @@ def _documents_to_dataframe(
                 },
             )
 
-    return dataframe_result  # type: ignore[no-any-return]
+    return dataframe_result
 
 
 def _create_dataframe_from_rows(
@@ -333,13 +333,13 @@ def _create_empty_dataframe(
     if not schema:
         # Create completely empty DataFrame
         if backend == "pandas":
-            return execute(lambda: importlib.import_module("pandas").DataFrame())  # type: ignore[no-any-return]
+            return execute(lambda: importlib.import_module("pandas").DataFrame())
         else:
-            return execute(lambda: importlib.import_module("polars").DataFrame())  # type: ignore[no-any-return]
+            return execute(lambda: importlib.import_module("polars").DataFrame())
 
     schema_fields = [
         FieldSpec.from_schema_entry(name, type_spec)
         for name, type_spec in schema.items()
     ]
 
-    return execute(lambda: _create_dataframe_from_rows([], schema_fields, backend))  # type: ignore[no-any-return]
+    return execute(lambda: _create_dataframe_from_rows([], schema_fields, backend))

@@ -48,9 +48,9 @@ try:
     from . import retry
 
     if dataframes_available:
-        __all__ = ["retry", "config", "dataframes"]
+        __all__ = ["config", "dataframes", "retry"]
     else:
-        __all__ = ["retry", "config"]
+        __all__ = ["config", "retry"]
 except ImportError:
     # Provide helpful error message when tenacity is missing for retry
     import warnings
@@ -60,10 +60,7 @@ except ImportError:
         ImportWarning,
         stacklevel=2,
     )
-    if dataframes_available:
-        __all__ = ["config", "dataframes"]
-    else:
-        __all__ = ["config"]
+    __all__ = ["config", "dataframes"] if dataframes_available else ["config"]
 
 # Warn about missing dataframes dependencies
 if not dataframes_available:

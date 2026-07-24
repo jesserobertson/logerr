@@ -294,11 +294,13 @@ class TestChaining:
 
     def test_mixed_chain_with_error(self):
         """A raising map() propagates immediately, short-circuiting later .map() calls."""
-        with patch.object(logger, "log"):  # Suppress logging for test
-            with pytest.raises(ZeroDivisionError):
-                (
-                    Ok(42)
-                    .map(lambda x: x * 2)  # 84
-                    .map(lambda x: 1 / 0)  # Error here, propagates
-                    .map(lambda x: str(x))
-                )  # Never reached
+        with (
+            patch.object(logger, "log"),  # Suppress logging for test
+            pytest.raises(ZeroDivisionError),
+        ):
+            (
+                Ok(42)
+                .map(lambda x: x * 2)  # 84
+                .map(lambda x: 1 / 0)  # Error here, propagates
+                .map(lambda x: str(x))
+            )  # Never reached

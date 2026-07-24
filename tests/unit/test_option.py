@@ -380,10 +380,9 @@ class TestLogging:
     @pytest.mark.skip(reason="configure_from_confection moved to recipes module")
     def test_configure_from_confection_no_logerr_key(self):
         """Test configure_from_confection when config file doesn't contain 'logerr' key."""
-        import os
-
         # Create a temporary config file without 'logerr' section
         import tempfile
+        from pathlib import Path
 
         from logerr.config import configure_from_confection, get_config
 
@@ -400,7 +399,7 @@ class TestLogging:
             assert config.enabled is True
 
         finally:
-            os.unlink(temp_config_path)
+            Path(temp_config_path).unlink()
 
 
 class TestChaining:

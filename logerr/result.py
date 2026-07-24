@@ -455,10 +455,10 @@ class Err[T, E](Result[T, E]):
         # Capture basic context
         context: dict[str, Any] = {}
         if caller_frame:
-            import os
+            from pathlib import Path
 
             context["function"] = caller_frame.f_code.co_name
-            context["file"] = os.path.basename(caller_frame.f_code.co_filename)
+            context["file"] = Path(caller_frame.f_code.co_filename).name
             context["line"] = caller_frame.f_lineno
 
         # Get log level

@@ -29,7 +29,7 @@ def lint(
     fix: bool = typer.Option(False, help="Automatically fix issues"),
 ) -> None:
     """Run linting checks."""
-    cmd = ["ruff", "check"] + SOURCE_DIRS
+    cmd = ["ruff", "check", *SOURCE_DIRS]
 
     if fix:
         cmd.append("--fix")
@@ -90,12 +90,12 @@ def check() -> None:
 
     # Linting
     with Status("Running ruff linting...", console=console, spinner="dots"):
-        returncode = run_command(["ruff", "check"] + SOURCE_DIRS)
+        returncode = run_command(["ruff", "check", *SOURCE_DIRS])
         results["lint"] = "✅ Pass" if returncode == 0 else "❌ Fail"
 
     # Format checking
     with Status("Checking code formatting...", console=console, spinner="dots"):
-        returncode = run_command(["ruff", "format", "--check"] + SOURCE_DIRS)
+        returncode = run_command(["ruff", "format", "--check", *SOURCE_DIRS])
         results["format"] = "✅ Pass" if returncode == 0 else "❌ Fail"
 
     # Results table
@@ -128,11 +128,11 @@ def fix() -> None:
 
     # Format code
     with Status("Formatting code...", console=console, spinner="dots"):
-        run_command(["ruff", "format"] + SOURCE_DIRS)
+        run_command(["ruff", "format", *SOURCE_DIRS])
 
     # Fix linting issues
     with Status("Fixing linting issues...", console=console, spinner="dots"):
-        run_command(["ruff", "check", "--fix"] + SOURCE_DIRS)
+        run_command(["ruff", "check", "--fix", *SOURCE_DIRS])
 
     console.print("[green]✅ Auto-fix completed![/green]")
     console.print(

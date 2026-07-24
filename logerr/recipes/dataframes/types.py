@@ -96,9 +96,7 @@ def is_valid_type_spec(type_spec: Any) -> bool:
     if isinstance(type_spec, type):
         return True
     # Handle generic types like List[str], Dict[str, int], etc.
-    if hasattr(type_spec, "__origin__"):
-        return True
-    return False
+    return hasattr(type_spec, "__origin__")
 
 
 def get_pandas_dtype(field_spec: FieldSpec) -> str:

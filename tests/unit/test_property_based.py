@@ -398,10 +398,9 @@ class TestComparisonProperties:
         some_val = Some(value)
         some_larger = Some(value + 1)
 
-        if hasattr(some_val, "__lt__"):
-            # Test basic ordering if implemented
-            if value < value + 1:
-                assert some_val < some_larger
+        # Test basic ordering if implemented
+        if hasattr(some_val, "__lt__") and value < value + 1:
+            assert some_val < some_larger
 
 
 class TestErrorHandlingProperties:

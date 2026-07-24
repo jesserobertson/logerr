@@ -73,29 +73,31 @@ class TestRecipesImports:
 
         # Clear any cached imports (except core ones we want to keep)
         modules_to_clear = [
-            key for key in sys.modules.keys() if key.startswith("logerr.recipes")
+            key for key in sys.modules if key.startswith("logerr.recipes")
         ]
         for module in modules_to_clear:
             if module != "logerr.recipes.config":
                 del sys.modules[module]
 
-        with patch("builtins.__import__", side_effect=mock_import):
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
+        with (
+            patch("builtins.__import__", side_effect=mock_import),
+            warnings.catch_warnings(record=True) as w,
+        ):
+            warnings.simplefilter("always")
 
-                # Force reimport
-                import logerr.recipes
+            # Force reimport
+            import logerr.recipes
 
-                importlib.reload(logerr.recipes)
+            importlib.reload(logerr.recipes)
 
-                # Should have warning about missing tenacity
-                assert len(w) >= 1
-                warning_messages = [str(warning.message) for warning in w]
-                assert any("tenacity" in msg for msg in warning_messages)
+            # Should have warning about missing tenacity
+            assert len(w) >= 1
+            warning_messages = [str(warning.message) for warning in w]
+            assert any("tenacity" in msg for msg in warning_messages)
 
-                # Should not have retry in __all__
-                assert "retry" not in logerr.recipes.__all__
-                assert "config" in logerr.recipes.__all__
+            # Should not have retry in __all__
+            assert "retry" not in logerr.recipes.__all__
+            assert "config" in logerr.recipes.__all__
 
     def test_recipes_imports_without_dataframes_deps(self):
         """Test recipes module behavior when dataframes dependencies are missing."""

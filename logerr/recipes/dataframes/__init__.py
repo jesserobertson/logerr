@@ -31,11 +31,11 @@ from .quality import DataQualityReport, generate_quality_report
 from .types import Required
 
 __all__ = [
+    "DataQualityReport",
     "Required",
+    "convert_bson_value",
     "from_mongo",
     "from_mongo_cursor",
-    "DataQualityReport",
     "generate_quality_report",
-    "convert_bson_value",
     "infer_schema_from_documents",
 ]

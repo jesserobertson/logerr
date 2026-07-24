@@ -8,9 +8,9 @@ parameter resolution, exception-safe chaining, and simple logging.
 
 from __future__ import annotations
 
-import os
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Literal, overload
 
 from loguru import logger
@@ -193,7 +193,7 @@ def log(
     # Create context dictionary with basic info
     context: dict[str, Any] = {
         "function": function_name,
-        "file": os.path.basename(filename),
+        "file": Path(filename).name,
         "line": str(line_number),
     }
 
@@ -267,10 +267,11 @@ def validate[T, E](
             return Some(value) if return_type == "option" else Ok(value)
 
         # Predicate failed
-        if callable(error_factory):
-            error = error_factory(value)  # type: ignore
-        else:
-            error = error_factory  # type: ignore
+        error = (
+            error_factory(value)  # type: ignore
+            if callable(error_factory)
+            else error_factory  # type: ignore
+        )
 
         if return_type == "option":
             return Nothing.from_filter(f"Value {value} failed validation")
