@@ -2,6 +2,15 @@
 
 This document outlines the complete process for releasing logerr to PyPI.
 
+## Automated Release (scaffolded, not yet active)
+
+`.github/workflows/publish.yml` exists but is **not functional yet** - it
+uses PyPI trusted publishing (OIDC), which requires configuring this repo
+as a trusted publisher on the PyPI project settings page first. It's
+manual-trigger only (`workflow_dispatch`, choose testpypi or pypi), never
+triggered automatically by a tag push. Until trusted publishing is set up,
+use the manual process below.
+
 ## 🔍 Pre-Release Checklist
 
 Before starting the release process, ensure all these steps are completed:
@@ -73,30 +82,11 @@ password = pypi-YOUR_TEST_TOKEN_HERE
 
 ### Step 3: Build Packages
 
-Due to Python 3.13 compatibility issues with the current build environment, use one of these methods:
-
-#### Option A: System Python (Recommended)
 ```bash
-# Install build tools
-pip install build twine
-
-# Clean previous builds
-rm -rf dist/* build/* *.egg-info/
-
-# Build packages
-python -m build
+pixi run -e dev build package
 
 # Verify build contents
 python -m zipfile -l dist/*.whl
-```
-
-#### Option B: Alternative Build Method
-```bash
-# If you have working packages from a previous build
-git checkout HEAD~1 -- dist/  # Restore if needed
-
-# Or use setuptools directly
-python setup.py sdist bdist_wheel
 ```
 
 ### Step 4: Validate Packages
@@ -182,17 +172,21 @@ twine upload dist/*
 
 ## 🔧 Using Pixi Commands
 
-If the build environment issues are resolved, you can use the configured pixi commands:
-
 ```bash
 # Build package
-pixi run -e dev build
+pixi run -e dev build package
+
+# Check package
+pixi run -e dev build check
 
 # Upload to TestPyPI
-pixi run -e dev twine upload --repository testpypi dist/*
+pixi run -e dev build upload --repository testpypi
 
-# Upload to PyPI  
-pixi run -e dev distribute
+# Upload to PyPI
+pixi run -e dev build upload --repository pypi
+
+# Clean build artifacts
+pixi run -e dev build clean
 ```
 
 ## 📋 Package Contents Verification

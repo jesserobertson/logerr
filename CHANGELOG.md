@@ -109,6 +109,12 @@ a 1.0 stability commitment is made.
   which `docs/guide/getting-started.md` already used correctly. All CLAUDE.md
   examples now use the real method names.
 
+- `.github/workflows/publish.yml`: scaffolded PyPI publish workflow using
+  trusted publishing (OIDC). **Not functional yet** - requires configuring
+  this repo as a trusted publisher on PyPI's project settings first, and
+  has no API token fallback by design. Manual-trigger only
+  (`workflow_dispatch`), never runs on a tag push.
+
 ### Added (CI/tooling)
 
 - `scripts/check_version_sync.py` + `pixi run -e dev check-version-sync`:
