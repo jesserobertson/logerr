@@ -140,6 +140,36 @@ a 1.0 stability commitment is made.
   `ruff-format`/`mypy` hooks - `check-all` (also always-run) already covers
   all three, so they were silently running twice on every commit.
 
+- Full documentation review across CLAUDE.md, README.md, and docs/guide/*.md
+  found and fixed several real bugs, not just staleness:
+  - `Option`/`Result` docs (`docs/guide/option-types.md`,
+    `docs/guide/result-types.md`) taught a fictional `.match(some=, nothing=)`
+    / `.match(ok=, err=)` method that has never existed - replaced with the
+    real `match`/`case` structural pattern matching syntax.
+  - README's "Safe Data Processing" example called a fictional
+    `Option.zip()` - rewritten using `.then()`/`.map()`.
+  - README's "Configuration Loading Pipeline" example called
+    `validate(config, predicate, None)` with `error_factory` positionally,
+    but it's keyword-only - confirmed this raises `TypeError` and fixed to
+    `error_factory=None`.
+  - `docs/guide/examples.md`'s first example called
+    `logerr.configure({"level": ..., "libraries": {...}})` - the same
+    dict-vs-flat-kwargs bug fixed elsewhere earlier, missed in this file.
+    Fixed to use `configure_advanced()`.
+  - `pixi shell --feature X` doesn't exist as a flag combination - `pixi
+    shell` only accepts `-e`/`--environment`. Fixed in CLAUDE.md.
+  - `pixi run -e docs docs-build`/`docs-serve` (CLAUDE.md, README.md) can
+    never work: `scripts/docs.py` needs both `typer` (a `dev`-feature
+    dependency) and `mkdocs` (a `docs`-feature dependency), so it only runs
+    under the `default` environment. Fixed to `pixi run docs build`/`docs
+    serve` (no `-e` flag).
+  - Added `docs/api/utilities.md` - `logerr.utilities` (10 public
+    functions) had no API reference page at all.
+  - Removed several unused `typing` imports (`Optional`, `Union`, stale
+    `List`/`Dict` in favor of `list`/`dict`) picked up while reading through
+    every example.
+  - Updated stale test-count/coverage claims in README.md and docs/index.md.
+
 ### Test Coverage
 
 - `logerr/recipes/dataframes/{conversion,mongo,quality}.py`: 10-37% -> 100%

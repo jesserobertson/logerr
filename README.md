@@ -2,8 +2,8 @@
 
 **Rust-like Option and Result types for Python with automatic logging**
 
-[![Tests](https://img.shields.io/badge/tests-162%20passed-green)](https://github.com/jesserobertson/logerr)
-[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/jesserobertson/logerr)
+[![Tests](https://img.shields.io/badge/tests-566%20passed-green)](https://github.com/jesserobertson/logerr)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen)](https://github.com/jesserobertson/logerr)
 [![Type Checked](https://img.shields.io/badge/mypy-passing-blue)](https://github.com/jesserobertson/logerr)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://github.com/jesserobertson/logerr)
 
@@ -15,7 +15,7 @@
 - **🪵 Automatic Logging**: Error cases logged automatically with configurable levels  
 - **⚙️ Highly Configurable**: Per-library settings via [confection](https://github.com/explosion/confection)
 - **🔒 Type Safe**: Full mypy support with proper generic types
-- **🧪 Well Tested**: 79 tests including comprehensive doctests
+- **🧪 Well Tested**: 500+ tests including property-based tests and comprehensive doctests
 - **🚀 Clean API**: Discoverable, IDE-friendly interface
 
 ## 🚀 Quick Start
@@ -192,7 +192,7 @@ df = df_result.unwrap_or(pd.DataFrame())  # Empty DataFrame if the query failed
 
 ```python
 from logerr import Result, Ok, Err
-from logerr.recipes import retry  # Requires: pixi install --feature retry
+from logerr.recipes import retry  # Requires: pixi install -e retry (or pip install "logerr[retry]")
 from typing import Any
 
 @retry.on_err(max_attempts=3, log_attempts=True)
@@ -244,7 +244,11 @@ def validate_config(config: dict) -> Result[dict, str]:
     required_keys = ["database_url", "api_key"]
     
     return (
-        validate(config, lambda cfg: all(key in cfg for key in required_keys), None)
+        validate(
+            config,
+            lambda cfg: all(key in cfg for key in required_keys),
+            error_factory=None,
+        )
         .map_err(lambda _: f"Missing required keys: {[k for k in required_keys if k not in config]}")
         .map(lambda _: config)
     )
@@ -293,8 +297,7 @@ user_data = {"user": {"profile": {"name": "alice smith"}, "role": "admin"}}
 
 greeting = (
     process_user_data(user_data)
-    .zip(get_user_role(user_data))  # Combine name and role
-    .map(lambda pair: f"{pair[0]} (Role: {pair[1]})")
+    .then(lambda name: get_user_role(user_data).map(lambda role: f"{name} (Role: {role})"))
     .unwrap_or("👋 Anonymous User")
 )
 
@@ -304,6 +307,8 @@ print(greeting)  # 👋 Alice Smith (Role: admin)
 ### NoSQL to DataFrame with Data Quality Logging
 
 ```python
+from datetime import datetime
+
 from logerr.recipes.dataframes import Required, from_mongo
 from logerr import configure
 
@@ -319,7 +324,7 @@ schema = {
     "bio": str,                   # Optional[str] by default
     "preferences": dict,          # Optional[dict] by default
     "created_at": datetime,       # Optional[datetime] by default
-    "tags": List[str],           # Optional[List[str]] by default
+    "tags": list[str],           # Optional[list[str]] by default
 }
 
 # Safe MongoDB querying with automatic data quality logging
@@ -399,24 +404,24 @@ This project uses [pixi](https://pixi.sh) for development:
 # Install dependencies
 pixi install
 
-# Install with retry/tables modules for advanced patterns and utilities
-pixi run -e retry
-pixi run -e tables
+# Install with retry/tables extras for advanced patterns and utilities
+pixi install -e retry
+pixi install -e tables
 
-# Run tests
-pixi run -e dev test
+# Run fast tests
+pixi run -e dev test fast
 
-# Run tests with doctests
-pixi run -e dev test-all
+# Run all tests, including doctests
+pixi run -e dev test all
 
 # Type checking
-pixi run -e dev typecheck
+pixi run -e dev quality typecheck
 
-# Build documentation
-pixi run -e docs docs-build
+# Build documentation (default environment - combines dev + docs features)
+pixi run docs build
 
 # Serve documentation locally
-pixi run -e docs docs-serve
+pixi run docs serve
 ```
 
 ## 🤝 Contributing

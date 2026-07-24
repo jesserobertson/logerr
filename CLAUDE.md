@@ -19,10 +19,10 @@ Key features:
 - `pixi info` - Show project and environment information
 - `pixi install` - Install dependencies
 - `pixi shell` - Activate the pixi environment
-- `pixi shell --feature dev` - Activate environment with dev dependencies
-- `pixi shell --feature docs` - Activate environment with documentation dependencies
-- `pixi shell --feature retry` - Activate environment with retry recipes (tenacity)
-- `pixi shell --feature tables` - Activate environment with dataframe/table recipes (pandas, pymongo)
+- `pixi shell -e dev` - Activate environment with dev dependencies (`pixi shell` only accepts `-e`/`--environment`, not `--feature`)
+- `pixi shell -e docs` - Activate environment with documentation dependencies
+- `pixi shell -e retry` - Activate environment with retry recipes (tenacity)
+- `pixi shell -e tables` - Activate environment with dataframe/table recipes (pandas, pymongo)
 
 ### Testing and Quality
 
@@ -68,8 +68,14 @@ pixi run -e dev pytest tests/ --cov=logerr --cov-report=html -m unit
 ```
 
 ### Documentation
-- `pixi run -e docs docs-serve` - Serve documentation locally
-- `pixi run -e docs docs-build` - Build documentation
+
+`scripts/docs.py` needs both `typer` (a `dev`-feature dependency) and
+`mkdocs` (a `docs`-feature dependency), so it only works under the
+`default` environment (which combines both) - `-e docs` alone is missing
+`typer` and will fail with `ModuleNotFoundError`.
+
+- `pixi run docs build` - Build documentation (uses the default environment; no `-e` flag)
+- `pixi run docs serve` - Serve documentation locally
 
 ### Package Management
 - Add dependencies: `pixi add <package-name>`

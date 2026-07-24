@@ -8,13 +8,15 @@ Here's how you might use `logerr` in a web application for robust error handling
 
 ```python
 import logerr
+from logerr.recipes.config import configure_advanced
 from pathlib import Path
 import json
 import sqlite3
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-# Configure logging for different components
-logerr.configure({
+# Configure logging for different components. logerr.configure() only takes
+# flat enabled/level kwargs - per-library settings need configure_advanced().
+configure_advanced({
     "level": "INFO",
     "libraries": {
         "webapp.database": {"level": "DEBUG"},
@@ -228,7 +230,7 @@ Build a robust HTTP client with automatic retries:
 import logerr
 import requests
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 class HttpClient:
     """HTTP client with Result-based error handling and retry logic."""
@@ -348,7 +350,7 @@ import logerr
 import os
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List
 from dataclasses import dataclass, field
 
 @dataclass

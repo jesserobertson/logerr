@@ -254,9 +254,10 @@ result = (Option.from_nullable("42")
 print(result)  # 84
 ```
 
-## Pattern Matching with `match()`
+## Pattern Matching with `match`/`case`
 
-Handle both present and absent cases in a single expression:
+`Some`/`Nothing` support Python's structural pattern matching directly -
+there's no `.match()` method, just the built-in `match` statement:
 
 ```python
 from logerr import Some, Nothing
@@ -268,17 +269,20 @@ def find_item(items: list, predicate):
     return Nothing.empty()
 
 items = [1, 2, 3, 4, 5]
-result = find_item(items, lambda x: x > 3).match(
-    some=lambda value: f"Found: {value}",
-    nothing=lambda: "Not found"
-)
-print(result)  # "Found: 4"
 
-result = find_item(items, lambda x: x > 10).match(
-    some=lambda value: f"Found: {value}",
-    nothing=lambda: "Not found"
-)
-print(result)  # "Not found"
+match find_item(items, lambda x: x > 3):
+    case Some(value):
+        print(f"Found: {value}")
+    case Nothing():
+        print("Not found")
+# Found: 4
+
+match find_item(items, lambda x: x > 10):
+    case Some(value):
+        print(f"Found: {value}")
+    case Nothing():
+        print("Not found")
+# Not found
 ```
 
 ## Comparison Support
@@ -303,9 +307,8 @@ Options work well with collection operations:
 
 ```python
 from logerr import Option, Some, Nothing
-from typing import List
 
-def first_even(numbers: List[int]) -> Option[int]:
+def first_even(numbers: list[int]) -> Option[int]:
     """Find the first even number in a list."""
     for num in numbers:
         if num % 2 == 0:
@@ -334,11 +337,9 @@ Here's a complete example showing how Options can be used for configuration mana
 
 ```python
 from logerr import Option
-from typing import Dict, Optional
-import os
 
 class ConfigManager:
-    def __init__(self, config_dict: Dict[str, str]):
+    def __init__(self, config_dict: dict[str, str]):
         self.config = config_dict
     
     def get_string(self, key: str) -> Option[str]:

@@ -42,6 +42,7 @@ nav:
     - Result: api/result.md
     - Option: api/option.md
     - Configuration: api/config.md
+    - Utilities: api/utilities.md
 
 plugins:
   - search

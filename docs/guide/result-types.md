@@ -237,9 +237,10 @@ else:
     print("Failed to load configuration - using defaults")
 ```
 
-## Pattern Matching with `match()`
+## Pattern Matching with `match`/`case`
 
-Handle both success and error cases in a single expression:
+`Ok`/`Err` support Python's structural pattern matching directly - there's
+no `.match()` method, just the built-in `match` statement:
 
 ```python
 from logerr import Result, Ok, Err
@@ -249,17 +250,19 @@ def divide(a: float, b: float) -> Result[float, str]:
         return Err("Division by zero")
     return Ok(a / b)
 
-result = divide(10, 2).match(
-    ok=lambda value: f"Result: {value}",
-    err=lambda error: f"Error: {error}"
-)
-print(result)  # "Result: 5.0"
+match divide(10, 2):
+    case Ok(value):
+        print(f"Result: {value}")
+    case Err(error):
+        print(f"Error: {error}")
+# Result: 5.0
 
-result = divide(10, 0).match(
-    ok=lambda value: f"Result: {value}",
-    err=lambda error: f"Error: {error}"
-)
-print(result)  # "Error: Division by zero"
+match divide(10, 0):
+    case Ok(value):
+        print(f"Result: {value}")
+    case Err(error):
+        print(f"Error: {error}")
+# Error: Division by zero
 ```
 
 ## Comparison Support
@@ -288,7 +291,6 @@ Here's a complete example showing how Results can be used for file processing:
 from logerr import Result, Ok, Err
 import json
 from pathlib import Path
-from typing import Dict, List
 
 def read_file(path: str) -> Result[str, str]:
     """Read file contents."""

@@ -10,7 +10,7 @@
 🪵 **Automatic Logging**: Error cases are logged automatically with configurable levels  
 ⚙️ **Highly Configurable**: Per-library configuration via [confection](https://github.com/explosion/confection)  
 🔒 **Type Safe**: Full mypy support with proper generic types  
-🧪 **Well Tested**: Comprehensive test suite with 79 tests including doctests  
+🧪 **Well Tested**: Comprehensive test suite with 500+ tests including property-based tests and doctests  
 🚀 **Easy to Use**: Clean, discoverable API with excellent IDE support  
 
 ## Quick Start
