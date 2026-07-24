@@ -201,3 +201,45 @@ def or_result[T, E, F](res: Result[T, E], other: Result[T, F]) -> Result[T, F]:
     if res.is_ok():
         return Ok(res.unwrap())
     return other
+
+
+def ok[T, E](result: Result[T, E]) -> Option[T]:
+    """Convert a Result into an Option, discarding any error.
+
+    Args:
+        result: The Result to convert.
+
+    Returns:
+        Some(value) if Ok, otherwise Nothing.
+
+    Examples:
+        >>> from logerr import Ok, Err
+        >>> ok(Ok(42))
+        Some(42)
+        >>> ok(Err("boom"))
+        Nothing('Empty option')
+    """
+    if result.is_ok():
+        return Some(result.unwrap())
+    return Nothing.empty()
+
+
+def err[T, E](result: Result[T, E]) -> Option[E]:
+    """Convert a Result into an Option of its error, discarding any value.
+
+    Args:
+        result: The Result to convert.
+
+    Returns:
+        Some(error) if Err, otherwise Nothing.
+
+    Examples:
+        >>> from logerr import Ok, Err
+        >>> err(Err("boom"))
+        Some('boom')
+        >>> err(Ok(42))
+        Nothing('Empty option')
+    """
+    if result.is_err():
+        return Some(result.unwrap_err())
+    return Nothing.empty()

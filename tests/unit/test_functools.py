@@ -8,8 +8,10 @@ from logerr import Err, Nothing, Ok, Some
 from logerr.functools import (
     and_option,
     and_result,
+    err,
     flatten_option,
     flatten_result,
+    ok,
     or_option,
     or_result,
     zip_option,
@@ -155,3 +157,25 @@ class TestOrResult:
         result = or_result(Err("primary"), Err("secondary"))
         assert result.is_err()
         assert result.unwrap_err() == "secondary"
+
+
+class TestOk:
+    def test_ok_becomes_some(self):
+        result = ok(Ok(42))
+        assert result.is_some()
+        assert result.unwrap() == 42
+
+    def test_err_becomes_nothing(self):
+        result = ok(Err("boom"))
+        assert result.is_nothing()
+
+
+class TestErr:
+    def test_err_becomes_some(self):
+        result = err(Err("boom"))
+        assert result.is_some()
+        assert result.unwrap() == "boom"
+
+    def test_ok_becomes_nothing(self):
+        result = err(Ok(42))
+        assert result.is_nothing()
