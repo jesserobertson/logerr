@@ -22,7 +22,11 @@ from logerr.itertools import (
 _option_items_strategy = st.lists(
     st.one_of(st.integers().map(Some), st.just(Nothing.empty()))
 )
-_result_items_strategy = st.lists(st.one_of(st.integers().map(Ok), st.text().map(Err)))
+_result_items_strategy = st.lists(
+    st.one_of(
+        st.integers().map(Ok), st.text().map(lambda e: Err(e, _skip_logging=True))
+    )
+)
 
 
 class TestSequenceProperties:
@@ -55,7 +59,7 @@ class TestSequenceProperties:
         """Replacing any single element with Err makes sequence_result return Err."""
         index = data.draw(st.integers(min_value=0, max_value=len(xs) - 1))
         items: list[Result[int, str]] = [Ok(x) for x in xs]
-        items[index] = Err("boom")
+        items[index] = Err("boom", _skip_logging=True)
         assert sequence_result(items).is_err()
 
 

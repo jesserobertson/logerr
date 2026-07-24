@@ -27,7 +27,9 @@ def _option_strategy(inner: st.SearchStrategy[int]) -> st.SearchStrategy[Option[
 def _result_strategy(
     ok_inner: st.SearchStrategy[int], err_inner: st.SearchStrategy[str]
 ) -> st.SearchStrategy[Result[int, str]]:
-    return st.one_of(ok_inner.map(Ok), err_inner.map(Err))
+    return st.one_of(
+        ok_inner.map(Ok), err_inner.map(lambda e: Err(e, _skip_logging=True))
+    )
 
 
 class TestZipOptionProperties:
