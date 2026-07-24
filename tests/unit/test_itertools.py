@@ -12,6 +12,7 @@ from logerr.itertools import (
     sequence_result,
     traverse_option,
     traverse_result,
+    values,
 )
 
 pytestmark = pytest.mark.unit
@@ -139,3 +140,29 @@ class TestPartitionResult:
         oks, errs = partition_result([Err("a"), Ok(1), Err("b"), Ok(2)])
         assert oks == [1, 2]
         assert errs == ["a", "b"]
+
+
+class TestValues:
+    def test_options(self):
+        assert list(values([Some(1), Nothing.empty(), Some(3)])) == [1, 3]
+
+    def test_results(self):
+        assert list(values([Ok(1), Err("boom"), Ok(3)])) == [1, 3]
+
+    def test_all_absent(self):
+        assert list(values([Nothing.empty(), Nothing.empty()])) == []
+
+    def test_empty(self):
+        assert list(values([])) == []
+
+    def test_is_lazy(self):
+        calls = []
+
+        def gen():
+            for x in [Some(1), Some(2), Some(3)]:
+                calls.append(x)
+                yield x
+
+        it = values(gen())
+        next(it)
+        assert calls == [Some(1)]

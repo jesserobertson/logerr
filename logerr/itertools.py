@@ -12,7 +12,9 @@ with short-circuit-on-first-failure semantics.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+import itertools
+from collections.abc import Callable, Iterable, Iterator
+from typing import Any, overload
 
 from .option import Nothing, Option, Some
 from .result import Err, Ok, Result
@@ -173,3 +175,31 @@ def partition_result[T, E](items: Iterable[Result[T, E]]) -> tuple[list[T], list
         else:
             errs.append(item.unwrap_err())
     return oks, errs
+
+
+@overload
+def values[T](items: Iterable[Option[T]]) -> Iterator[T]: ...
+@overload
+def values[T](items: Iterable[Result[T, Any]]) -> Iterator[T]: ...
+def values(items: Iterable[Any]) -> Iterator[Any]:
+    """Yield the present/Ok values from a collection of Options/Results.
+
+    Lazy - drops Nothing/Err entries without raising or collecting error
+    information. Use partition_option/partition_result if you need the
+    failures too.
+
+    Args:
+        items: The Options or Results to extract values from.
+
+    Returns:
+        An iterator over the contained values.
+
+    Examples:
+        >>> from logerr import Some, Nothing
+        >>> list(values([Some(1), Nothing.empty(), Some(3)]))
+        [1, 3]
+        >>> from logerr import Ok, Err
+        >>> list(values([Ok(1), Err("boom"), Ok(3)]))
+        [1, 3]
+    """
+    return itertools.chain.from_iterable(items)
