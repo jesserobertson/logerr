@@ -8,7 +8,7 @@ import pytest
 from loguru import logger
 
 import logerr
-from logerr import Nothing, Some, configure
+from logerr import Nothing, Option, Some, configure
 
 pytestmark = pytest.mark.unit
 
@@ -536,3 +536,27 @@ class TestOptionCombinatorMethods:
         (0 or 1) by design - that's not a bug to catch here."""
         assert list(zip(Some(1), Some("a"), strict=False)) == [(1, "a")]
         assert list(zip(Nothing.empty(), Some("a"), strict=False)) == []
+
+
+class TestOptionCollectionFactories:
+    """Test that Option.sequence/Option.traverse delegate to logerr.itertools."""
+
+    def test_sequence_all_some(self):
+        result = Option.sequence([Some(1), Some(2)])
+        assert result.is_some()
+        assert result.unwrap() == [1, 2]
+
+    def test_sequence_short_circuits(self):
+        result = Option.sequence([Some(1), Nothing.empty()])
+        assert result.is_nothing()
+
+    def test_traverse_all_succeed(self):
+        result = Option.traverse([1, 2, 3], lambda x: Some(x * 2))
+        assert result.is_some()
+        assert result.unwrap() == [2, 4, 6]
+
+    def test_traverse_short_circuits(self):
+        result = Option.traverse(
+            [1, 2, 3], lambda x: Nothing.empty() if x == 2 else Some(x)
+        )
+        assert result.is_nothing()

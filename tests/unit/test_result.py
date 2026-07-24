@@ -8,7 +8,7 @@ import pytest
 from loguru import logger
 
 import logerr
-from logerr import Err, Ok, configure
+from logerr import Err, Ok, Result, configure
 
 pytestmark = pytest.mark.unit
 
@@ -385,3 +385,27 @@ class TestResultCombinatorMethods:
         design - that's not a bug to catch here."""
         assert list(zip(Ok(1), Ok("a"), strict=False)) == [(1, "a")]
         assert list(zip(Err("boom"), Ok("a"), strict=False)) == []
+
+
+class TestResultCollectionFactories:
+    """Test that Result.sequence/Result.traverse delegate to logerr.itertools."""
+
+    def test_sequence_all_ok(self):
+        result = Result.sequence([Ok(1), Ok(2)])
+        assert result.is_ok()
+        assert result.unwrap() == [1, 2]
+
+    def test_sequence_short_circuits(self):
+        result = Result.sequence([Ok(1), Err("boom")])
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_traverse_all_succeed(self):
+        result = Result.traverse([1, 2, 3], lambda x: Ok(x * 2))
+        assert result.is_ok()
+        assert result.unwrap() == [2, 4, 6]
+
+    def test_traverse_short_circuits(self):
+        result = Result.traverse([1, 2, 3], lambda x: Err("boom") if x == 2 else Ok(x))
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any, TypeVar
 
 from loguru import logger
@@ -416,6 +416,32 @@ class Option[T](ABC):
         return option_module.from_predicate(
             value, predicate, error_message=error_message
         )
+
+    @classmethod
+    def sequence(cls, items: Iterable[Option[T]]) -> Option[list[T]]:
+        """Fold an iterable of Options into one Option of a list.
+
+        Examples:
+            >>> Option.sequence([Some(1), Some(2)])
+            Some([1, 2])
+        """
+        from .itertools import sequence_option
+
+        return sequence_option(items)
+
+    @classmethod
+    def traverse[U](
+        cls, items: Iterable[U], func: Callable[[U], Option[T]]
+    ) -> Option[list[T]]:
+        """Map `func` over `items` and sequence the results.
+
+        Examples:
+            >>> Option.traverse([1, 2, 3], lambda x: Some(x * 2))
+            Some([2, 4, 6])
+        """
+        from .itertools import traverse_option
+
+        return traverse_option(items, func)
 
 
 class Some[T](Option[T]):

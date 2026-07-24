@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
@@ -401,6 +401,32 @@ class Result[T, E](ABC):
         from . import result as result_module
 
         return result_module.from_predicate(value, predicate, error)
+
+    @classmethod
+    def sequence(cls, items: Iterable[Result[T, E]]) -> Result[list[T], E]:
+        """Fold an iterable of Results into one Result of a list.
+
+        Examples:
+            >>> Result.sequence([Ok(1), Ok(2)])
+            Ok([1, 2])
+        """
+        from .itertools import sequence_result
+
+        return sequence_result(items)
+
+    @classmethod
+    def traverse[U](
+        cls, items: Iterable[U], func: Callable[[U], Result[T, E]]
+    ) -> Result[list[T], E]:
+        """Map `func` over `items` and sequence the results.
+
+        Examples:
+            >>> Result.traverse([1, 2, 3], lambda x: Ok(x * 2))
+            Ok([2, 4, 6])
+        """
+        from .itertools import traverse_result
+
+        return traverse_result(items, func)
 
 
 class Ok[T, E](Result[T, E]):
