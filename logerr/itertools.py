@@ -216,6 +216,14 @@ def sequence(items: Iterable[Any]) -> Any:
     always-available alternative, use sequence_option/sequence_result
     directly.
 
+    Args:
+        items: An iterable of Options or Results.
+
+    Returns:
+        Some(values) or Ok(values) if all items succeed, otherwise
+        Nothing or the first Err encountered, depending on whether items
+        contains Options or Results.
+
     Raises:
         ValueError: If `items` is empty.
         TypeError: If the first element is neither an Option nor a Result.
@@ -257,6 +265,15 @@ def traverse(items: Iterable[Any], func: Callable[[Any], Any]) -> Any:
     called exactly once per item regardless of dispatch (the first call's
     result is reused, never recomputed).
 
+    Args:
+        items: The values to map over.
+        func: A function that returns Option or Result.
+
+    Returns:
+        Some(values) or Ok(values) if all function calls succeed,
+        otherwise Nothing or the first Err encountered, depending on
+        whether func returns Options or Results.
+
     Raises:
         ValueError: If `items` is empty.
         TypeError: If `func`'s return value is neither an Option nor a
@@ -296,6 +313,13 @@ def partition(items: Iterable[Any]) -> tuple[list[Any], Any]:
     """Partition a collection of Options or Results.
 
     Dispatches on the first element's runtime type.
+
+    Args:
+        items: An iterable of Options or Results.
+
+    Returns:
+        If items contains Options: (values, nothing_count).
+        If items contains Results: (oks, errs).
 
     Raises:
         ValueError: If `items` is empty.
