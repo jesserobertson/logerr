@@ -112,3 +112,92 @@ def flatten_result[T, E](nested: Result[Result[T, E], E]) -> Result[T, E]:
     if nested.is_err():
         return Err(nested.unwrap_err(), _skip_logging=True)
     return nested.unwrap()
+
+
+def and_option[T, U](opt: Option[T], other: Option[U]) -> Option[U]:
+    """Return `other` if `opt` is Some, otherwise Nothing.
+
+    Args:
+        opt: The Option to check.
+        other: The Option to return if `opt` is Some.
+
+    Returns:
+        `other` if `opt` is Some, otherwise Nothing.
+
+    Examples:
+        >>> from logerr import Some, Nothing
+        >>> and_option(Some(1), Some("a"))
+        Some('a')
+        >>> and_option(Nothing.empty(), Some("a"))
+        Nothing('Empty option')
+    """
+    if opt.is_some():
+        return other
+    return Nothing.empty()
+
+
+def and_result[T, U, E](res: Result[T, E], other: Result[U, E]) -> Result[U, E]:
+    """Return `other` if `res` is Ok, otherwise the original Err.
+
+    Args:
+        res: The Result to check.
+        other: The Result to return if `res` is Ok.
+
+    Returns:
+        `other` if `res` is Ok, otherwise `res`'s error re-wrapped.
+
+    Examples:
+        >>> from logerr import Ok, Err
+        >>> and_result(Ok(1), Ok("a"))
+        Ok('a')
+        >>> and_result(Err("boom"), Ok("a"))  # doctest: +ELLIPSIS
+        Err(...)
+    """
+    if res.is_err():
+        return Err(res.unwrap_err(), _skip_logging=True)
+    return other
+
+
+def or_option[T](opt: Option[T], other: Option[T]) -> Option[T]:
+    """Return `opt` if it's Some, otherwise `other`.
+
+    Args:
+        opt: The Option to check.
+        other: The fallback Option if `opt` is Nothing.
+
+    Returns:
+        `opt` if Some, otherwise `other`.
+
+    Examples:
+        >>> from logerr import Some, Nothing
+        >>> or_option(Some(1), Some(2))
+        Some(1)
+        >>> or_option(Nothing.empty(), Some(2))
+        Some(2)
+    """
+    if opt.is_some():
+        return opt
+    return other
+
+
+def or_result[T, E, F](res: Result[T, E], other: Result[T, F]) -> Result[T, F]:
+    """Return `res` if it's Ok, otherwise `other`.
+
+    Args:
+        res: The Result to check.
+        other: The fallback Result if `res` is Err. May have a different
+            error type than `res`.
+
+    Returns:
+        `res`'s value re-wrapped if Ok, otherwise `other`.
+
+    Examples:
+        >>> from logerr import Ok, Err
+        >>> or_result(Ok(1), Err("fallback"))
+        Ok(1)
+        >>> or_result(Err("primary"), Ok(2))
+        Ok(2)
+    """
+    if res.is_ok():
+        return Ok(res.unwrap())
+    return other

@@ -5,7 +5,16 @@ Tests for logerr.functools module.
 import pytest
 
 from logerr import Err, Nothing, Ok, Some
-from logerr.functools import flatten_option, flatten_result, zip_option, zip_result
+from logerr.functools import (
+    and_option,
+    and_result,
+    flatten_option,
+    flatten_result,
+    or_option,
+    or_result,
+    zip_option,
+    zip_result,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -81,3 +90,68 @@ class TestFlattenResult:
         result = flatten_result(Err("outer boom"))
         assert result.is_err()
         assert result.unwrap_err() == "outer boom"
+
+
+class TestAndOption:
+    def test_some_returns_other(self):
+        result = and_option(Some(1), Some("a"))
+        assert result.is_some()
+        assert result.unwrap() == "a"
+
+    def test_some_other_nothing(self):
+        result = and_option(Some(1), Nothing.empty())
+        assert result.is_nothing()
+
+    def test_nothing_short_circuits(self):
+        result = and_option(Nothing.empty(), Some("a"))
+        assert result.is_nothing()
+
+
+class TestAndResult:
+    def test_ok_returns_other(self):
+        result = and_result(Ok(1), Ok("a"))
+        assert result.is_ok()
+        assert result.unwrap() == "a"
+
+    def test_ok_other_err(self):
+        result = and_result(Ok(1), Err("boom"))
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_err_short_circuits(self):
+        result = and_result(Err("boom"), Ok("a"))
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+
+class TestOrOption:
+    def test_some_returns_self(self):
+        result = or_option(Some(1), Some(2))
+        assert result.is_some()
+        assert result.unwrap() == 1
+
+    def test_nothing_returns_other(self):
+        result = or_option(Nothing.empty(), Some(2))
+        assert result.is_some()
+        assert result.unwrap() == 2
+
+    def test_both_nothing(self):
+        result = or_option(Nothing.empty(), Nothing.empty())
+        assert result.is_nothing()
+
+
+class TestOrResult:
+    def test_ok_returns_self(self):
+        result = or_result(Ok(1), Err("fallback error"))
+        assert result.is_ok()
+        assert result.unwrap() == 1
+
+    def test_err_returns_other(self):
+        result = or_result(Err("primary error"), Ok(2))
+        assert result.is_ok()
+        assert result.unwrap() == 2
+
+    def test_both_err(self):
+        result = or_result(Err("primary"), Err("secondary"))
+        assert result.is_err()
+        assert result.unwrap_err() == "secondary"
