@@ -6,10 +6,13 @@ import pytest
 
 from logerr import Err, Nothing, Ok, Some
 from logerr.itertools import (
+    partition,
     partition_option,
     partition_result,
+    sequence,
     sequence_option,
     sequence_result,
+    traverse,
     traverse_option,
     traverse_result,
     values,
@@ -166,3 +169,81 @@ class TestValues:
         it = values(gen())
         next(it)
         assert calls == [Some(1)]
+
+
+class TestSequencePolymorphic:
+    def test_dispatches_to_option(self):
+        result = sequence([Some(1), Some(2)])
+        assert result.is_some()
+        assert result.unwrap() == [1, 2]
+
+    def test_dispatches_to_result(self):
+        result = sequence([Ok(1), Ok(2)])
+        assert result.is_ok()
+        assert result.unwrap() == [1, 2]
+
+    def test_short_circuits_option(self):
+        result = sequence([Some(1), Nothing.empty()])
+        assert result.is_nothing()
+
+    def test_short_circuits_result(self):
+        result = sequence([Ok(1), Err("boom")])
+        assert result.is_err()
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            sequence([])
+
+    def test_wrong_type_raises(self):
+        with pytest.raises(TypeError, match="Option or Result"):
+            sequence([1, 2, 3])
+
+
+class TestTraversePolymorphic:
+    def test_dispatches_to_option(self):
+        result = traverse([1, 2, 3], lambda x: Some(x * 2))
+        assert result.is_some()
+        assert result.unwrap() == [2, 4, 6]
+
+    def test_dispatches_to_result(self):
+        result = traverse([1, 2, 3], lambda x: Ok(x * 2))
+        assert result.is_ok()
+        assert result.unwrap() == [2, 4, 6]
+
+    def test_func_called_once_per_item(self):
+        calls = []
+
+        def func(x):
+            calls.append(x)
+            return Some(x)
+
+        traverse([1, 2, 3], func)
+        assert calls == [1, 2, 3]
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            traverse([], lambda x: Some(x))
+
+    def test_wrong_return_type_raises(self):
+        with pytest.raises(TypeError, match="Option or Result"):
+            traverse([1, 2, 3], lambda x: x)
+
+
+class TestPartitionPolymorphic:
+    def test_dispatches_to_option(self):
+        values_, nothing_count = partition([Some(1), Nothing.empty()])
+        assert values_ == [1]
+        assert nothing_count == 1
+
+    def test_dispatches_to_result(self):
+        oks, errs = partition([Ok(1), Err("boom")])
+        assert oks == [1]
+        assert errs == ["boom"]
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            partition([])
+
+    def test_wrong_type_raises(self):
+        with pytest.raises(TypeError, match="Option or Result"):
+            partition([1, 2, 3])

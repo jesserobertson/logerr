@@ -203,3 +203,119 @@ def values(items: Iterable[Any]) -> Iterator[Any]:
         [1, 3]
     """
     return itertools.chain.from_iterable(items)
+
+
+@overload
+def sequence[T](items: Iterable[Option[T]]) -> Option[list[T]]: ...
+@overload
+def sequence[T, E](items: Iterable[Result[T, E]]) -> Result[list[T], E]: ...
+def sequence(items: Iterable[Any]) -> Any:
+    """Fold a collection of Options or Results into one.
+
+    Dispatches on the first element's runtime type. For the unambiguous,
+    always-available alternative, use sequence_option/sequence_result
+    directly.
+
+    Raises:
+        ValueError: If `items` is empty.
+        TypeError: If the first element is neither an Option nor a Result.
+
+    Examples:
+        >>> from logerr import Some
+        >>> sequence([Some(1), Some(2)])
+        Some([1, 2])
+    """
+    it = iter(items)
+    try:
+        first = next(it)
+    except StopIteration:
+        raise ValueError(
+            "sequence() cannot infer Option vs Result from an empty "
+            "iterable; use sequence_option([]) or sequence_result([]) "
+            "directly"
+        ) from None
+    rest = itertools.chain([first], it)
+    if isinstance(first, Some | Nothing):
+        return sequence_option(rest)
+    if isinstance(first, Ok | Err):
+        return sequence_result(rest)
+    raise TypeError(f"sequence() expects Option or Result items, got {type(first)!r}")
+
+
+@overload
+def traverse[T, U](
+    items: Iterable[T], func: Callable[[T], Option[U]]
+) -> Option[list[U]]: ...
+@overload
+def traverse[T, U, E](
+    items: Iterable[T], func: Callable[[T], Result[U, E]]
+) -> Result[list[U], E]: ...
+def traverse(items: Iterable[Any], func: Callable[[Any], Any]) -> Any:
+    """Map `func` over `items` and sequence the results.
+
+    Dispatches on the type of `func`'s first return value. `func` is
+    called exactly once per item regardless of dispatch (the first call's
+    result is reused, never recomputed).
+
+    Raises:
+        ValueError: If `items` is empty.
+        TypeError: If `func`'s return value is neither an Option nor a
+            Result.
+
+    Examples:
+        >>> from logerr import Some
+        >>> traverse([1, 2, 3], lambda x: Some(x * 2))
+        Some([2, 4, 6])
+    """
+    it = iter(items)
+    try:
+        first_item = next(it)
+    except StopIteration:
+        raise ValueError(
+            "traverse() cannot infer Option vs Result from an empty "
+            "iterable; use traverse_option([], func) or "
+            "traverse_result([], func) directly"
+        ) from None
+    first_result = func(first_item)
+    rest = (func(item) for item in it)
+    if isinstance(first_result, Some | Nothing):
+        return sequence_option(itertools.chain([first_result], rest))
+    if isinstance(first_result, Ok | Err):
+        return sequence_result(itertools.chain([first_result], rest))
+    raise TypeError(
+        "traverse() expects func to return Option or Result, "
+        f"got {type(first_result)!r}"
+    )
+
+
+@overload
+def partition[T](items: Iterable[Option[T]]) -> tuple[list[T], int]: ...
+@overload
+def partition[T, E](items: Iterable[Result[T, E]]) -> tuple[list[T], list[E]]: ...
+def partition(items: Iterable[Any]) -> tuple[list[Any], Any]:
+    """Partition a collection of Options or Results.
+
+    Dispatches on the first element's runtime type.
+
+    Raises:
+        ValueError: If `items` is empty.
+        TypeError: If the first element is neither an Option nor a Result.
+
+    Examples:
+        >>> from logerr import Some, Nothing
+        >>> partition([Some(1), Nothing.empty(), Some(3)])
+        ([1, 3], 1)
+    """
+    materialized = list(items)
+    if not materialized:
+        raise ValueError(
+            "partition() cannot infer Option vs Result from an empty "
+            "iterable; use partition_option([]) or partition_result([]) "
+            "directly"
+        )
+    first = materialized[0]
+    if isinstance(first, Some | Nothing):
+        return partition_option(materialized)
+    if isinstance(first, Ok | Err):
+        return partition_result(materialized)
+    raise TypeError(f"partition() expects Option or Result items, got {type(first)!r}")
