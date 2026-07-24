@@ -206,6 +206,43 @@ result = (Err("timeout occurred")
 print(result.unwrap())  # "recovered from timeout"
 ```
 
+### `zip()`, `flatten()`, `and_()`, `or_()`, `ok()`, `err()` - Additional Combinators
+
+```python
+from logerr import Ok, Err
+
+# zip() - combine two Results into a tuple (first Err wins)
+Ok(1).zip(Ok("a"))              # Ok((1, "a"))
+Ok(1).zip(Err("boom"))          # Err("boom")
+
+# flatten() - collapse a nested Result
+Ok(Ok(42)).flatten()            # Ok(42)
+
+# and_() - return other if Ok, otherwise the original Err
+Ok(1).and_(Ok("a"))             # Ok("a")
+Err("boom").and_(Ok("a"))       # Err("boom")
+
+# or_() - return self if Ok, otherwise other
+Ok(1).or_(Err("fallback"))      # Ok(1)
+Err("primary").or_(Ok(2))       # Ok(2)
+
+# ok() / err() - convert to Option, discarding the other side
+Ok(42).ok()                     # Some(42)
+Err("boom").ok()                # Nothing
+Err("boom").err()               # Some("boom")
+Ok(42).err()                    # Nothing
+```
+
+`Result` is also iterable (yielding the Ok value 0 or 1 times, never the
+Err value), so Python's own `zip()`/`itertools` functions work on it
+directly:
+
+```python
+list(Ok(1))                            # [1]
+list(Err("boom"))                      # []
+list(zip(Ok(1), Ok("a")))              # [(1, "a")]
+```
+
 ## Method Chaining
 
 Results support fluent method chaining for complex operations:

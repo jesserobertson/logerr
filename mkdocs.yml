@@ -43,6 +43,7 @@ nav:
     - Option: api/option.md
     - Configuration: api/config.md
     - Utilities: api/utilities.md
+    - Functools: api/functools.md
 
 plugins:
   - search

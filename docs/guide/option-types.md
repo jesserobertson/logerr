@@ -227,6 +227,37 @@ config = (Nothing.empty()
 print(config.unwrap())  # {"theme": "default", "language": "en"}
 ```
 
+### `zip()`, `flatten()`, `and_()`, `or_()` - Additional Combinators
+
+```python
+from logerr import Some, Nothing
+
+# zip() - combine two Options into a tuple
+Some(1).zip(Some("a"))          # Some((1, "a"))
+Some(1).zip(Nothing.empty())    # Nothing
+
+# flatten() - collapse a nested Option
+Some(Some(42)).flatten()        # Some(42)
+
+# and_() - return other if Some, otherwise Nothing
+Some(1).and_(Some("a"))         # Some("a")
+Nothing.empty().and_(Some("a")) # Nothing
+
+# or_() - return self if Some, otherwise other
+Some(1).or_(Some(2))            # Some(1)
+Nothing.empty().or_(Some(2))    # Some(2)
+```
+
+`Option` is also iterable (yielding the value 0 or 1 times), so Python's
+own `zip()`/`itertools` functions work on it directly - no logerr-specific
+wrapper needed:
+
+```python
+list(Some(1))                          # [1]
+list(Nothing.empty())                  # []
+list(zip(Some(1), Some("a")))          # [(1, "a")]
+```
+
 ## Method Chaining
 
 Options support fluent method chaining for complex operations:

@@ -57,6 +57,20 @@ a 1.0 stability commitment is made.
 - `execute()`/`nullable()` now have `@overload` signatures keyed on the
   `return_type` literal, so callers get a precise `Option[T]` or `Result[T, E]`
   instead of `Any`.
+- `logerr.functools` - free-function combinators (`zip_option`, `zip_result`,
+  `flatten_option`, `flatten_result`, `and_option`, `and_result`,
+  `or_option`, `or_result`, `ok`, `err`), mirroring Rust's `Option`/`Result`
+  API surface. `Option`/`Result` gained matching `zip()`/`flatten()`/
+  `and_()`/`or_()` methods (`ok()`/`err()` on `Result` only) that delegate
+  to these functions. None of the ten invoke a user-supplied callable, so
+  none of them carry the exception-catch-vs-propagate question that
+  `map`/`then`/`filter`/`or_else` do.
+- `Option`/`Result` are now iterable (`__iter__` yields the value 0 or 1
+  times, matching Rust's `Option::iter()`/`Result::iter()` - `Result`
+  never yields the `Err` value). This means Python's own `zip()` and the
+  standard `itertools` toolkit already work correctly on `Option`/`Result`
+  directly, with no bespoke `logerr` `zip()` wrapper that could behave
+  differently from the real one depending on what you pass it.
 - `CHANGELOG.md` (this file).
 
 ### Fixed

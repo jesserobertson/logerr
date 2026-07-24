@@ -12,6 +12,7 @@
 ## 🌟 Features
 
 - **🦀 Rust-like Types**: Familiar `Option<T>` and `Result<T, E>` with method chaining
+- **🔗 Full Combinator Set**: `zip()`, `flatten()`, `and_()`, `or_()`, `ok()`, `err()` alongside the core `map`/`then`/`filter`
 - **🪵 Automatic Logging**: Error cases logged automatically with configurable levels  
 - **⚙️ Highly Configurable**: Per-library settings via [confection](https://github.com/explosion/confection)
 - **🔒 Type Safe**: Full mypy support with proper generic types

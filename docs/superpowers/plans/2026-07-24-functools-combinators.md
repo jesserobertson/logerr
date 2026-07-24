@@ -691,10 +691,17 @@ class TestOptionCombinatorMethods:
 
     def test_builtin_zip_works_via_iter(self):
         """Once Option is iterable, Python's own zip() works directly -
-        no bespoke logerr zip wrapper needed."""
-        assert list(zip(Some(1), Some("a"))) == [(1, "a")]
-        assert list(zip(Nothing.empty(), Some("a"))) == []
+        no bespoke logerr zip wrapper needed. strict=False is explicit
+        because Option/Nothing legitimately yield different counts
+        (0 or 1) by design - that's not a bug to catch here."""
+        assert list(zip(Some(1), Some("a"), strict=False)) == [(1, "a")]
+        assert list(zip(Nothing.empty(), Some("a"), strict=False)) == []
 ```
+
+Note: `ruff`'s `B` (flake8-bugbear) rules flag bare `zip()` without an
+explicit `strict=` — since executing this task revealed that finding,
+`strict=False` is required here (not just style) to keep `ruff check`
+passing; the equivalent test in Task 6 needs the same treatment.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -966,9 +973,11 @@ class TestResultCombinatorMethods:
 
     def test_builtin_zip_works_via_iter(self):
         """Once Result is iterable, Python's own zip() works directly -
-        no bespoke logerr zip wrapper needed."""
-        assert list(zip(Ok(1), Ok("a"))) == [(1, "a")]
-        assert list(zip(Err("boom"), Ok("a"))) == []
+        no bespoke logerr zip wrapper needed. strict=False is explicit
+        because Ok/Err legitimately yield different counts (0 or 1) by
+        design - that's not a bug to catch here."""
+        assert list(zip(Ok(1), Ok("a"), strict=False)) == [(1, "a")]
+        assert list(zip(Err("boom"), Ok("a"), strict=False)) == []
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**

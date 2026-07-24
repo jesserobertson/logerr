@@ -343,6 +343,12 @@ def retry_operation(max_attempts: int | None = None) -> None:
 | `pipe()` | Pipeline-style composition of functions | Multi-step transforms without nesting |
 | `try_chain()` | Try callables in order, return first success | Fallback strategies |
 
+### **Combinator Methods on Option/Result**
+
+`Some`/`Nothing`/`Ok`/`Err` also have `zip()`, `flatten()`, `and_()`, `or_()` methods (plus `ok()`/`err()` on `Result`), implemented as thin delegates to free functions in `logerr.functools` (`zip_option`, `zip_result`, `flatten_option`, `flatten_result`, `and_option`, `and_result`, `or_option`, `or_result`, `ok`, `err`). None of these invoke a callable, so - unlike `map`/`then`/`filter`/`or_else` - there's no exception-propagation question: a `Nothing`/`Err` input just propagates as-is.
+
+`Option`/`Result` are also iterable now (`__iter__` yields the value 0 or 1 times - `Nothing`/`Err` yield nothing, `Some`/`Ok` yield their value once), matching Rust's own `Option::iter()`/`Result::iter()`. This means Python's own `zip()` and the standard `itertools` toolkit already work correctly on `Option`/`Result` values directly - there's deliberately no bespoke `logerr` `zip()` wrapper that could behave differently from the real one depending on what you pass it.
+
 ## API Structure
 
 The library provides a clean, namespaced API:
