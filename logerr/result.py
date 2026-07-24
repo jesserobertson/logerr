@@ -378,6 +378,110 @@ class Result[T, E](ABC):
         """
         pass
 
+    @abstractmethod
+    def __hash__(self) -> int:
+        """Hash this Result, consistent with __eq__.
+
+        Returns:
+            A hash derived from the concrete class and its contained value,
+            so that `a == b` implies `hash(a) == hash(b)`.
+
+        Examples:
+            >>> hash(Ok(1)) == hash(Ok(1))
+            True
+        """
+        pass
+
+    @abstractmethod
+    def __bool__(self) -> bool:
+        """Return whether this Result is truthy.
+
+        Returns:
+            True if this is Ok, False if Err.
+
+        Examples:
+            >>> bool(Ok(42))
+            True
+            >>> bool(Err("boom"))
+            False
+        """
+        pass
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """Return the number of contained success values (0 or 1).
+
+        Mirrors __iter__'s "0 or 1 elements" framing.
+
+        Returns:
+            1 if this is Ok, 0 if Err.
+
+        Examples:
+            >>> len(Ok(42))
+            1
+            >>> len(Err("boom"))
+            0
+        """
+        pass
+
+    @abstractmethod
+    def __contains__(self, item: object) -> bool:
+        """Check whether `item` equals the contained Ok value.
+
+        Never checks against the error value - membership testing means
+        "does this contain the success value x", not "is this the error".
+
+        Args:
+            item: The value to test for membership.
+
+        Returns:
+            True if this is Ok and its value equals `item`, otherwise False.
+
+        Examples:
+            >>> 42 in Ok(42)
+            True
+            >>> 42 in Err("boom")
+            False
+        """
+        pass
+
+    @abstractmethod
+    def __and__[U](self, other: Result[U, E]) -> Result[U, E]:
+        """Thin delegate to and_() - return `other` if this is Ok, otherwise this Err.
+
+        Args:
+            other: The Result to return if this is Ok.
+
+        Returns:
+            `other` if this is Ok, otherwise this Err re-wrapped.
+
+        Examples:
+            >>> Ok(1) & Ok("a")
+            Ok('a')
+            >>> Err("boom") & Ok("a")  # doctest: +ELLIPSIS
+            Err(...)
+        """
+        pass
+
+    @abstractmethod
+    def __or__[F](self, other: Result[T, F]) -> Result[T, F]:
+        """Thin delegate to or_() - return this Result if Ok, otherwise `other`.
+
+        Args:
+            other: The fallback Result if this is Err. May have a
+                different error type than this Result.
+
+        Returns:
+            This Result's value re-wrapped if Ok, otherwise `other`.
+
+        Examples:
+            >>> Ok(1) | Err("fallback")
+            Ok(1)
+            >>> Err("primary") | Ok(2)
+            Ok(2)
+        """
+        pass
+
     @classmethod
     def of(cls, f: Callable[[], T]) -> Result[T, Exception]:
         """Create a Result from a callable that might raise an exception."""
@@ -546,6 +650,24 @@ class Ok[T, E](Result[T, E]):
         from .functools import err as err_fn
 
         return err_fn(self)
+
+    def __hash__(self) -> int:
+        return hash((Ok, self._value))
+
+    def __bool__(self) -> bool:
+        return True
+
+    def __len__(self) -> int:
+        return 1
+
+    def __contains__(self, item: object) -> bool:
+        return bool(self._value == item)
+
+    def __and__[U](self, other: Result[U, E]) -> Result[U, E]:
+        return self.and_(other)
+
+    def __or__[F](self, other: Result[T, F]) -> Result[T, F]:
+        return self.or_(other)
 
     def __repr__(self) -> str:
         return f"Ok({self._value!r})"
@@ -784,6 +906,24 @@ class Err[T, E](Result[T, E]):
         from .functools import err as err_fn
 
         return err_fn(self)
+
+    def __hash__(self) -> int:
+        return hash((Err, self._error))
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __len__(self) -> int:
+        return 0
+
+    def __contains__(self, item: object) -> bool:
+        return False
+
+    def __and__[U](self, other: Result[U, E]) -> Result[U, E]:
+        return self.and_(other)
+
+    def __or__[F](self, other: Result[T, F]) -> Result[T, F]:
+        return self.or_(other)
 
     def __repr__(self) -> str:
         return f"Err({self._error!r})"

@@ -383,6 +383,106 @@ class Option[T](ABC):
         """
         pass
 
+    @abstractmethod
+    def __hash__(self) -> int:
+        """Hash this Option, consistent with __eq__.
+
+        Returns:
+            A hash derived from the concrete class and its contained value,
+            so that `a == b` implies `hash(a) == hash(b)`.
+
+        Examples:
+            >>> hash(Some(1)) == hash(Some(1))
+            True
+        """
+        pass
+
+    @abstractmethod
+    def __bool__(self) -> bool:
+        """Return whether this Option is truthy.
+
+        Returns:
+            True if this is Some, False if Nothing.
+
+        Examples:
+            >>> bool(Some(42))
+            True
+            >>> bool(Nothing.empty())
+            False
+        """
+        pass
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """Return the number of contained values (0 or 1).
+
+        Mirrors __iter__'s "0 or 1 elements" framing.
+
+        Returns:
+            1 if this is Some, 0 if Nothing.
+
+        Examples:
+            >>> len(Some(42))
+            1
+            >>> len(Nothing.empty())
+            0
+        """
+        pass
+
+    @abstractmethod
+    def __contains__(self, item: object) -> bool:
+        """Check whether `item` equals the contained Some value.
+
+        Args:
+            item: The value to test for membership.
+
+        Returns:
+            True if this is Some and its value equals `item`, otherwise False.
+
+        Examples:
+            >>> 42 in Some(42)
+            True
+            >>> 42 in Nothing.empty()
+            False
+        """
+        pass
+
+    @abstractmethod
+    def __and__[U](self, other: Option[U]) -> Option[U]:
+        """Thin delegate to and_() - return `other` if this is Some, otherwise Nothing.
+
+        Args:
+            other: The Option to return if this is Some.
+
+        Returns:
+            `other` if this is Some, otherwise Nothing.
+
+        Examples:
+            >>> Some(1) & Some("a")
+            Some('a')
+            >>> Nothing.empty() & Some("a")  # doctest: +ELLIPSIS
+            Nothing(...)
+        """
+        pass
+
+    @abstractmethod
+    def __or__(self, other: Option[T]) -> Option[T]:
+        """Thin delegate to or_() - return this Option if Some, otherwise `other`.
+
+        Args:
+            other: The fallback Option if this is Nothing.
+
+        Returns:
+            This Option if Some, otherwise `other`.
+
+        Examples:
+            >>> Some(1) | Some(2)
+            Some(1)
+            >>> Nothing.empty() | Some(2)
+            Some(2)
+        """
+        pass
+
     @classmethod
     def from_nullable(cls, value: T | None) -> Option[T]:
         """Create an Option from a potentially None value."""
@@ -552,6 +652,24 @@ class Some[T](Option[T]):
         from .functools import or_option
 
         return or_option(self, other)
+
+    def __hash__(self) -> int:
+        return hash((Some, self._value))
+
+    def __bool__(self) -> bool:
+        return True
+
+    def __len__(self) -> int:
+        return 1
+
+    def __contains__(self, item: object) -> bool:
+        return bool(self._value == item)
+
+    def __and__[U](self, other: Option[U]) -> Option[U]:
+        return self.and_(other)
+
+    def __or__(self, other: Option[T]) -> Option[T]:
+        return self.or_(other)
 
     def __repr__(self) -> str:
         return f"Some({self._value!r})"
@@ -824,6 +942,24 @@ class Nothing[T](Option[T]):
         from .functools import or_option
 
         return or_option(self, other)
+
+    def __hash__(self) -> int:
+        return hash((Nothing, self._reason))
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __len__(self) -> int:
+        return 0
+
+    def __contains__(self, item: object) -> bool:
+        return False
+
+    def __and__[U](self, other: Option[U]) -> Option[U]:
+        return self.and_(other)
+
+    def __or__(self, other: Option[T]) -> Option[T]:
+        return self.or_(other)
 
     def __repr__(self) -> str:
         return f"Nothing({self._reason!r})"

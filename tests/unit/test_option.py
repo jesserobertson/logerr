@@ -538,6 +538,60 @@ class TestOptionCombinatorMethods:
         assert list(zip(Nothing.empty(), Some("a"), strict=False)) == []
 
 
+class TestOptionDunderMethods:
+    """Test __hash__/__bool__/__len__/__contains__/__and__/__or__ on Option."""
+
+    def test_some_hash_matches_equal_instances(self):
+        assert hash(Some(1)) == hash(Some(1))
+
+    def test_some_hash_usable_in_set_and_dict(self):
+        assert {Some(1), Some(1), Some(2)} == {Some(1), Some(2)}
+        d = {Some(1): "one"}
+        assert d[Some(1)] == "one"
+
+    def test_nothing_hash_matches_equal_instances(self):
+        assert hash(Nothing.empty()) == hash(Nothing.empty())
+
+    def test_nothing_hash_usable_in_set_and_dict(self):
+        assert {Nothing.empty(), Nothing.empty()} == {Nothing.empty()}
+        d = {Nothing.empty(): "nothing"}
+        assert d[Nothing.empty()] == "nothing"
+
+    def test_some_bool_is_true(self):
+        assert bool(Some(42)) is True
+        assert bool(Some(0)) is True  # Truthiness reflects is_some(), not the value
+
+    def test_nothing_bool_is_false(self):
+        assert bool(Nothing.empty()) is False
+
+    def test_some_len_is_one(self):
+        assert len(Some(42)) == 1
+
+    def test_nothing_len_is_zero(self):
+        assert len(Nothing.empty()) == 0
+
+    def test_some_contains_matching_value(self):
+        assert 42 in Some(42)
+
+    def test_some_contains_non_matching_value(self):
+        assert 99 not in Some(42)
+
+    def test_nothing_contains_is_always_false(self):
+        assert 42 not in Nothing.empty()
+
+    def test_some_and_dunder_matches_and_method(self):
+        assert (Some(1) & Some("a")) == Some(1).and_(Some("a"))
+
+    def test_nothing_and_dunder_matches_and_method(self):
+        assert (Nothing.empty() & Some("a")) == Nothing.empty().and_(Some("a"))
+
+    def test_some_or_dunder_matches_or_method(self):
+        assert (Some(1) | Some(2)) == Some(1).or_(Some(2))
+
+    def test_nothing_or_dunder_matches_or_method(self):
+        assert (Nothing.empty() | Some(2)) == Nothing.empty().or_(Some(2))
+
+
 class TestOptionCollectionFactories:
     """Test that Option.sequence/Option.traverse delegate to logerr.itertools."""
 

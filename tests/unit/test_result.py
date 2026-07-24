@@ -387,6 +387,62 @@ class TestResultCombinatorMethods:
         assert list(zip(Err("boom"), Ok("a"), strict=False)) == []
 
 
+class TestResultDunderMethods:
+    """Test __hash__/__bool__/__len__/__contains__/__and__/__or__ on Result."""
+
+    def test_ok_hash_matches_equal_instances(self):
+        assert hash(Ok(1)) == hash(Ok(1))
+
+    def test_ok_hash_usable_in_set_and_dict(self):
+        assert {Ok(1), Ok(1), Ok(2)} == {Ok(1), Ok(2)}
+        d = {Ok(1): "one"}
+        assert d[Ok(1)] == "one"
+
+    def test_err_hash_matches_equal_instances(self):
+        assert hash(Err("boom")) == hash(Err("boom"))
+
+    def test_err_hash_usable_in_set_and_dict(self):
+        assert {Err("boom"), Err("boom"), Err("bang")} == {Err("boom"), Err("bang")}
+        d = {Err("boom"): "err-value"}
+        assert d[Err("boom")] == "err-value"
+
+    def test_ok_bool_is_true(self):
+        assert bool(Ok(42)) is True
+        assert bool(Ok(0)) is True  # Truthiness reflects is_ok(), not the value
+
+    def test_err_bool_is_false(self):
+        assert bool(Err("boom")) is False
+
+    def test_ok_len_is_one(self):
+        assert len(Ok(42)) == 1
+
+    def test_err_len_is_zero(self):
+        assert len(Err("boom")) == 0
+
+    def test_ok_contains_matching_value(self):
+        assert 42 in Ok(42)
+
+    def test_ok_contains_non_matching_value(self):
+        assert 99 not in Ok(42)
+
+    def test_err_contains_is_always_false(self):
+        """Membership tests success values, not error values - `in` on Err is
+        always False even for the wrapped error value itself."""
+        assert "boom" not in Err("boom")
+
+    def test_ok_and_dunder_matches_and_method(self):
+        assert (Ok(1) & Ok("a")) == Ok(1).and_(Ok("a"))
+
+    def test_err_and_dunder_matches_and_method(self):
+        assert (Err("boom") & Ok("a")) == Err("boom").and_(Ok("a"))
+
+    def test_ok_or_dunder_matches_or_method(self):
+        assert (Ok(1) | Err("fallback")) == Ok(1).or_(Err("fallback"))
+
+    def test_err_or_dunder_matches_or_method(self):
+        assert (Err("primary") | Ok(2)) == Err("primary").or_(Ok(2))
+
+
 class TestResultCollectionFactories:
     """Test that Result.sequence/Result.traverse delegate to logerr.itertools."""
 

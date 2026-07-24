@@ -41,6 +41,11 @@ a 1.0 stability commitment is made.
   `logerr.recipes.retry.retry_if_err()` function instead.
 - `execute()`'s `on_exception` keyword argument renamed to `return_type`, matching
   `nullable()`/`validate()`'s naming for the same concept.
+- `Some`/`Ok` are now truthy and `Nothing`/`Err` are now falsy via `__bool__`
+  (previously every `Option`/`Result` instance was truthy regardless of
+  `Ok`/`Err`, since neither `__bool__` nor `__len__` was defined - Python's
+  default object truthiness). Code relying on `if some_result:` always being
+  `True` will now see it reflect `is_ok()`/`is_some()` instead.
 
 ### Added
 
@@ -85,6 +90,12 @@ a 1.0 stability commitment is made.
   directly instead). `Option`/`Result` gained matching `sequence()`/
   `traverse()` classmethod factories.
 - `CHANGELOG.md` (this file).
+- `Some`/`Nothing`/`Ok`/`Err` gained `__len__` (`1` for `Some`/`Ok`, `0` for
+  `Nothing`/`Err`, mirroring `__iter__`'s existing "0 or 1 elements"
+  framing), `__contains__` (membership test against the contained `Some`/`Ok`
+  value only - `x in some_err` is always `False`, never checked against the
+  error), and `__and__`/`__or__` (operator aliases for the existing `and_()`/
+  `or_()` methods, e.g. `Some(1) & Some("a")` is `Some(1).and_(Some("a"))`).
 
 ### Fixed
 
@@ -135,6 +146,12 @@ a 1.0 stability commitment is made.
   codebase. The real methods are `Result.of()`/`Option.of()` and `.then()`,
   which `docs/guide/getting-started.md` already used correctly. All CLAUDE.md
   examples now use the real method names.
+- `Some`/`Nothing`/`Ok`/`Err` were unhashable: defining `__eq__` without
+  `__hash__` makes Python set `__hash__ = None` automatically, so none of
+  the four could be put in a `set` or used as a `dict` key even when their
+  contained value was itself hashable. Added `__hash__` implementations
+  consistent with each class's existing `__eq__` (e.g.
+  `hash((Some, self._value))`).
 
 - `.github/workflows/publish.yml`: scaffolded PyPI publish workflow using
   trusted publishing (OIDC). **Not functional yet** - requires configuring
