@@ -12,7 +12,7 @@ with short-circuit-on-first-failure semantics.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from .option import Nothing, Option, Some
 from .result import Err, Ok, Result
@@ -72,3 +72,50 @@ def sequence_result[T, E](items: Iterable[Result[T, E]]) -> Result[list[T], E]:
             return Err(item.unwrap_err(), _skip_logging=True)
         values.append(item.unwrap())
     return Ok(values)
+
+
+def traverse_option[T, U](
+    items: Iterable[T], func: Callable[[T], Option[U]]
+) -> Option[list[U]]:
+    """Map `func` over `items` and sequence the results.
+
+    Short-circuits: `func` is never called on items after the first one
+    that returns Nothing.
+
+    Args:
+        items: The values to map over.
+        func: A function from T to Option[U].
+
+    Returns:
+        Some(values) if every call returns Some, otherwise Nothing.
+
+    Examples:
+        >>> from logerr import Some
+        >>> traverse_option([1, 2, 3], lambda x: Some(x * 2))
+        Some([2, 4, 6])
+    """
+    return sequence_option(func(item) for item in items)
+
+
+def traverse_result[T, U, E](
+    items: Iterable[T], func: Callable[[T], Result[U, E]]
+) -> Result[list[U], E]:
+    """Map `func` over `items` and sequence the results.
+
+    Short-circuits: `func` is never called on items after the first one
+    that returns Err.
+
+    Args:
+        items: The values to map over.
+        func: A function from T to Result[U, E].
+
+    Returns:
+        Ok(values) if every call returns Ok, otherwise the first Err
+        encountered.
+
+    Examples:
+        >>> from logerr import Ok
+        >>> traverse_result([1, 2, 3], lambda x: Ok(x * 2))
+        Ok([2, 4, 6])
+    """
+    return sequence_result(func(item) for item in items)
