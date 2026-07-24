@@ -366,13 +366,16 @@ True
 
 ```
 
-**Advanced Configuration** (requires recipes module):
+**Advanced Configuration** (per-library settings, custom formats, file-based
+config — no extra install needed, `confection` is already a core dependency;
+this just lives under `logerr.recipes.config` to keep the top-level API
+small):
 
 ```python
-from logerr.recipes import config
+from logerr.recipes.config import configure_advanced, configure_from_confection
 
 # Advanced configuration with per-library settings
-config.configure_advanced({
+configure_advanced({
     "enabled": True,
     "level": "WARNING", 
     "libraries": {
@@ -384,8 +387,9 @@ config.configure_advanced({
     "capture_filename": True
 })
 
-# Load from configuration file
-config.configure_from_confection("config.cfg")
+# Load from a confection config file (see the Configuration guide for the
+# expected [logerr] file format)
+configure_from_confection("config.cfg")
 ```
 
 ## 🧪 Development

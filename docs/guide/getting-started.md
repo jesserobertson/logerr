@@ -94,6 +94,7 @@ True
 
 ```
 
+```python
 # Chain operations
 result = (Some("hello world")
     .map(str.upper)               # Some("HELLO WORLD")
