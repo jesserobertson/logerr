@@ -39,19 +39,19 @@ class TestOk:
         assert chained.unwrap() == 84
 
     def test_ok_then_exception_handling(self):
-        """Test that Ok.then handles exceptions in callback functions."""
+        """Test that Ok.then propagates exceptions raised in callback functions."""
 
         def failing_func(x):
             raise ValueError("test error")
 
-        result = Ok(42).then(failing_func)
-        assert result.is_err()
-        assert isinstance(result, Err)
+        with pytest.raises(ValueError, match="test error"):
+            Ok(42).then(failing_func)
 
     def test_ok_map_with_exception(self):
+        """Ok.map propagates exceptions raised by the transform (Rust parity)."""
         result = Ok(42)
-        mapped = result.map(lambda x: 1 / 0)  # Will raise ZeroDivisionError
-        assert isinstance(mapped, Err)
+        with pytest.raises(ZeroDivisionError):
+            result.map(lambda x: 1 / 0)
 
     def test_ok_unwrap_err_raises(self):
         result = Ok(42)
@@ -121,15 +121,14 @@ class TestErr:
             result.unwrap_or_else(failing_func)
 
     def test_err_map_err_exception_handling(self):
-        """Test that Err.map_err handles exceptions raised by the transform."""
+        """Test that Err.map_err propagates exceptions raised by the transform."""
         result = Err("original error")
 
         def failing_transform(e):
             raise ValueError("transform failed")
 
-        mapped = result.map_err(failing_transform)
-        assert isinstance(mapped, Err)
-        assert isinstance(mapped._error, ValueError)
+        with pytest.raises(ValueError, match="transform failed"):
+            result.map_err(failing_transform)
 
     def test_err_or_else_recovers(self):
         """Test that Err.or_else invokes the recovery function."""
@@ -139,15 +138,14 @@ class TestErr:
         assert recovered.unwrap() == 99
 
     def test_err_or_else_exception_handling(self):
-        """Test that Err.or_else handles exceptions raised by the recovery function."""
+        """Test that Err.or_else propagates exceptions raised by the recovery function."""
         result = Err("original error")
 
         def failing_recovery(e):
             raise RuntimeError("recovery failed")
 
-        recovered = result.or_else(failing_recovery)
-        assert isinstance(recovered, Err)
-        assert isinstance(recovered._error, RuntimeError)
+        with pytest.raises(RuntimeError, match="recovery failed"):
+            result.or_else(failing_recovery)
 
     def test_err_repr(self):
         assert repr(Err("boom")) == "Err('boom')"
@@ -295,13 +293,12 @@ class TestChaining:
         assert result._error == "initial error"
 
     def test_mixed_chain_with_error(self):
+        """A raising map() propagates immediately, short-circuiting later .map() calls."""
         with patch.object(logger, "log"):  # Suppress logging for test
-            result = (
-                Ok(42)
-                .map(lambda x: x * 2)  # 84
-                .map(lambda x: 1 / 0)  # Error here
-                .map(lambda x: str(x))
-            )  # Should not execute
-
-            assert isinstance(result, Err)
-            assert isinstance(result._error, ZeroDivisionError)
+            with pytest.raises(ZeroDivisionError):
+                (
+                    Ok(42)
+                    .map(lambda x: x * 2)  # 84
+                    .map(lambda x: 1 / 0)  # Error here, propagates
+                    .map(lambda x: str(x))
+                )  # Never reached

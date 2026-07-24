@@ -29,6 +29,11 @@ class Result[T, E](ABC):
         ...
 
     @abstractmethod
+    def unwrap_err(self) -> E:
+        """Extract the error value, raising an exception if this is an Ok."""
+        ...
+
+    @abstractmethod
     def unwrap_or(self, default: T) -> T:
         """Extract the success value or return a default."""
         ...

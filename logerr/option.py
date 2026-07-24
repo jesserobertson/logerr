@@ -149,6 +149,12 @@ class Option[T](ABC):
         Returns:
             Some(f(value)) if this is Some, otherwise Nothing.
 
+        Note:
+            Exceptions raised by f are not caught here - they propagate to
+            the caller, matching Rust's Option::map. Use execute()/of() at
+            the point where you construct an Option if you want exceptions
+            converted to Nothing automatically.
+
         Examples:
             >>> Some(5).map(lambda x: x * 2)
             Some(10)
@@ -166,6 +172,10 @@ class Option[T](ABC):
 
         Returns:
             f(value) if this is Some, otherwise Nothing.
+
+        Note:
+            Exceptions raised by f are not caught here - they propagate to
+            the caller, matching Rust's Option::and_then.
 
         Examples:
             >>> def safe_divide(x: int) -> Option[float]:
@@ -188,6 +198,10 @@ class Option[T](ABC):
 
         Returns:
             The original Some if this is Some, otherwise f().
+
+        Note:
+            Exceptions raised by f are not caught here - they propagate to
+            the caller, matching Rust's Option::or_else.
 
         Examples:
             >>> Some(42).or_else(lambda: Some(99))
@@ -231,6 +245,10 @@ class Option[T](ABC):
         Returns:
             The original Some if predicate returns True, otherwise Nothing.
 
+        Note:
+            Exceptions raised by predicate are not caught here - they
+            propagate to the caller.
+
         Examples:
             >>> Some(42).filter(lambda x: x > 30)
             Some(42)
@@ -266,6 +284,10 @@ class Option[T](ABC):
 
         Returns:
             Ok(value) if this is Some, otherwise Err(err_fn()).
+
+        Note:
+            Exceptions raised by err_fn are not caught here - they
+            propagate to the caller.
 
         Examples:
             >>> Some(42).ok_or_else(lambda: "missing")
@@ -357,19 +379,13 @@ class Some[T](Option[T]):
         return self._value
 
     def map[U](self, f: Callable[[T], U]) -> Option[U]:
-        try:
-            result = f(self._value)
-            if result is None:
-                return Nothing.from_none("Map function returned None")
-            return Some(result)
-        except Exception as e:
-            return Nothing.from_exception(e)
+        result = f(self._value)
+        if result is None:
+            return Nothing.from_none("Map function returned None")
+        return Some(result)
 
     def then[U](self, f: Callable[[T], Option[U]]) -> Option[U]:
-        try:
-            return f(self._value)
-        except Exception as e:
-            return Nothing.from_exception(e)
+        return f(self._value)
 
     def or_else(self, f: Callable[[], Option[T]]) -> Option[T]:
         return self
@@ -378,13 +394,10 @@ class Some[T](Option[T]):
         return self
 
     def filter(self, predicate: Callable[[T], bool]) -> Option[T]:
-        try:
-            if predicate(self._value):
-                return self
-            else:
-                return Nothing.from_filter("Value did not pass filter predicate")
-        except Exception as e:
-            return Nothing.from_exception(e)
+        if predicate(self._value):
+            return self
+        else:
+            return Nothing.from_filter("Value did not pass filter predicate")
 
     def ok_or(self, err: E) -> Result[T, E]:
         return Ok(self._value)
@@ -627,10 +640,7 @@ class Nothing[T](Option[T]):
         return Nothing(self._reason, _skip_logging=True, _exception=self._exception)
 
     def or_else(self, f: Callable[[], Option[T]]) -> Option[T]:
-        try:
-            return f()
-        except Exception as e:
-            return Nothing.from_exception(e)
+        return f()
 
     def or_default(self, default: T) -> Option[T]:
         return Some(default)
@@ -642,10 +652,7 @@ class Nothing[T](Option[T]):
         return Err(err)
 
     def ok_or_else(self, err_fn: Callable[[], E]) -> Result[T, E]:
-        try:
-            return Err(err_fn())
-        except Exception as e:
-            return Err(e)  # type: ignore[return-value]
+        return Err(err_fn())
 
     def __repr__(self) -> str:
         return f"Nothing({self._reason!r})"

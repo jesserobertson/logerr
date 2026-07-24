@@ -59,9 +59,10 @@ class TestSome:
         assert isinstance(filtered, Nothing)
 
     def test_some_map_with_exception(self):
+        """Some.map propagates exceptions raised by the transform (Rust parity)."""
         option = Some(42)
-        mapped = option.map(lambda x: 1 / 0)  # Will raise ZeroDivisionError
-        assert isinstance(mapped, Nothing)
+        with pytest.raises(ZeroDivisionError):
+            option.map(lambda x: 1 / 0)
 
     def test_some_map_returns_none(self):
         option = Some(42)
@@ -69,14 +70,13 @@ class TestSome:
         assert isinstance(mapped, Nothing)
 
     def test_some_then_exception_handling(self):
-        """Test that Some.then handles exceptions in callback functions."""
+        """Test that Some.then propagates exceptions raised in callback functions."""
 
         def failing_func(x):
             raise ValueError("test error")
 
-        result = Some(42).then(failing_func)
-        assert result.is_nothing()
-        assert isinstance(result, Nothing)
+        with pytest.raises(ValueError, match="test error"):
+            Some(42).then(failing_func)
 
     def test_some_ok_or(self):
         from logerr import Ok
@@ -107,10 +107,10 @@ class TestSome:
         assert result is option
 
     def test_some_filter_exception_handling(self):
-        """Test that Some.filter handles exceptions raised by the predicate."""
+        """Test that Some.filter propagates exceptions raised by the predicate."""
         option = Some(42)
-        filtered = option.filter(lambda x: 1 / 0 > 0)
-        assert isinstance(filtered, Nothing)
+        with pytest.raises(ZeroDivisionError):
+            option.filter(lambda x: 1 / 0 > 0)
 
     def test_some_repr(self):
         assert repr(Some(42)) == "Some(42)"
@@ -163,27 +163,24 @@ class TestNothing:
         assert result.unwrap_err() == "error message"
 
     def test_nothing_ok_or_else_exception_handling(self):
-        """Test that Nothing.ok_or_else handles exceptions raised by err_fn."""
-        from logerr import Err
-
+        """Test that Nothing.ok_or_else propagates exceptions raised by err_fn."""
         option = Nothing.empty()
 
         def failing_err_fn():
             raise ValueError("boom")
 
-        result = option.ok_or_else(failing_err_fn)
-        assert isinstance(result, Err)
-        assert isinstance(result.unwrap_err(), ValueError)
+        with pytest.raises(ValueError, match="boom"):
+            option.ok_or_else(failing_err_fn)
 
     def test_nothing_or_else_exception_handling(self):
-        """Test that Nothing.or_else handles exceptions raised by the callback."""
+        """Test that Nothing.or_else propagates exceptions raised by the callback."""
         option = Nothing.empty()
 
         def failing_recovery():
             raise RuntimeError("recovery failed")
 
-        result = option.or_else(failing_recovery)
-        assert isinstance(result, Nothing)
+        with pytest.raises(RuntimeError, match="recovery failed"):
+            option.or_else(failing_recovery)
 
     def test_nothing_repr(self):
         assert repr(Nothing("test reason")) == "Nothing('test reason')"

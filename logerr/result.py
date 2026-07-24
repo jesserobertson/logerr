@@ -103,6 +103,25 @@ class Result[T, E](ABC):
         pass
 
     @abstractmethod
+    def unwrap_err(self) -> E:
+        """Extract the error value, raising an exception if this is an Ok.
+
+        Returns:
+            The contained Err value.
+
+        Raises:
+            RuntimeError: If this Result is an Ok.
+
+        Examples:
+            >>> Err("failed").unwrap_err()
+            'failed'
+            >>> Ok(42).unwrap_err()  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+            RuntimeError: Called unwrap_err on Ok: 42
+        """
+        pass
+
+    @abstractmethod
     def unwrap_or(self, default: T) -> T:
         """Extract the success value or return a default.
 
@@ -148,6 +167,12 @@ class Result[T, E](ABC):
         Returns:
             Ok(f(value)) if this is Ok, otherwise the original Err.
 
+        Note:
+            Exceptions raised by f are not caught here - they propagate to
+            the caller, matching Rust's Result::map. Use execute()/of() at
+            the point where you construct a Result if you want exceptions
+            converted to Err automatically.
+
         Examples:
             >>> Ok(5).map(lambda x: x * 2)
             Ok(10)
@@ -166,6 +191,10 @@ class Result[T, E](ABC):
         Returns:
             Err(f(error)) if this is Err, otherwise the original Ok.
 
+        Note:
+            Exceptions raised by f are not caught here - they propagate to
+            the caller.
+
         Examples:
             >>> Ok(42).map_err(str)
             Ok(42)
@@ -183,6 +212,10 @@ class Result[T, E](ABC):
 
         Returns:
             f(value) if this is Ok, otherwise the original Err.
+
+        Note:
+            Exceptions raised by f are not caught here - they propagate to
+            the caller, matching Rust's Result::and_then.
 
         Examples:
             >>> def divide(x: int) -> Result[float, str]:
@@ -205,6 +238,10 @@ class Result[T, E](ABC):
 
         Returns:
             The original Ok if this is Ok, otherwise f(error).
+
+        Note:
+            Exceptions raised by f are not caught here - they propagate to
+            the caller, matching Rust's Result::or_else.
 
         Examples:
             >>> def retry(error: str) -> Result[int, str]:
@@ -306,19 +343,13 @@ class Ok[T, E](Result[T, E]):
         return self._value
 
     def map[U](self, f: Callable[[T], U]) -> Result[U, E]:
-        try:
-            return Ok(f(self._value))
-        except Exception as e:
-            return Err(e)  # type: ignore
+        return Ok(f(self._value))
 
     def map_err[U](self, f: Callable[[E], U]) -> Result[T, U]:
         return Ok(self._value)
 
     def then[U](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
-        try:
-            return f(self._value)
-        except Exception as e:
-            return Err(e)  # type: ignore
+        return f(self._value)
 
     def or_else[U](self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
         return Ok(self._value)
@@ -520,19 +551,13 @@ class Err[T, E](Result[T, E]):
         return Err(self._error, _skip_logging=True)
 
     def map_err[U](self, f: Callable[[E], U]) -> Result[T, U]:
-        try:
-            return Err(f(self._error))
-        except Exception as e:
-            return Err(e)  # type: ignore
+        return Err(f(self._error))
 
     def then[U](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         return Err(self._error, _skip_logging=True)
 
     def or_else[U](self, f: Callable[[E], Result[T, U]]) -> Result[T, U]:
-        try:
-            return f(self._error)
-        except Exception as e:
-            return Err(e)  # type: ignore
+        return f(self._error)
 
     def __repr__(self) -> str:
         return f"Err({self._error!r})"

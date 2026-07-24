@@ -4,6 +4,7 @@ Hypothesis-based edge case tests for robustness and error handling.
 
 import sys
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -81,38 +82,41 @@ class TestEdgeCases:
 
     @given(st.text())
     def test_map_error_propagation(self, error_text: str):
-        """Test that map operations properly propagate errors."""
+        """Test that map operations propagate exceptions raised by the transform."""
 
         def failing_transform(x):
             raise RuntimeError(error_text)
 
         # Option case
         option = Some(42)
-        mapped_option = option.map(failing_transform)
-        assert mapped_option.is_nothing()
+        with pytest.raises(RuntimeError) as option_exc_info:
+            option.map(failing_transform)
+        assert str(option_exc_info.value) == error_text
 
         # Result case
         result = Ok(42)
-        mapped_result = result.map(failing_transform)
-        assert mapped_result.is_err()
-        assert isinstance(mapped_result.unwrap_err(), RuntimeError)
+        with pytest.raises(RuntimeError) as result_exc_info:
+            result.map(failing_transform)
+        assert str(result_exc_info.value) == error_text
 
     @given(st.text())
     def test_then_error_propagation(self, error_text: str):
-        """Test that then operations properly propagate errors."""
+        """Test that then() propagates exceptions raised by the chained function."""
 
         def failing_chain(x):
             raise RuntimeError(error_text)
 
         # Option case
         option = Some(42)
-        chained_option = option.then(failing_chain)
-        assert chained_option.is_nothing()
+        with pytest.raises(RuntimeError) as option_exc_info:
+            option.then(failing_chain)
+        assert str(option_exc_info.value) == error_text
 
         # Result case
         result = Ok(42)
-        chained_result = result.then(failing_chain)
-        assert chained_result.is_err()
+        with pytest.raises(RuntimeError) as result_exc_info:
+            result.then(failing_chain)
+        assert str(result_exc_info.value) == error_text
 
 
 class TestMonadicLaws:
