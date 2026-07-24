@@ -26,18 +26,18 @@ class TestExecute:
 
     def test_execute_success_option(self):
         """Test execute with successful operation returning Option."""
-        result = execute(lambda: "hello", on_exception="option")
+        result = execute(lambda: "hello", return_type="option")
         assert result.is_some()
         assert result.unwrap() == "hello"
 
     def test_execute_none_result_option(self):
         """Test execute when callable returns None for option mode."""
-        result = execute(lambda: None, on_exception="option")
+        result = execute(lambda: None, return_type="option")
         assert result.is_nothing()
 
     def test_execute_exception_option(self):
         """Test execute with exception returning Option."""
-        result = execute(lambda: 1 / 0, on_exception="option")
+        result = execute(lambda: 1 / 0, return_type="option")
         assert result.is_nothing()
 
     def test_execute_falsy_default_error_zero(self):
@@ -110,6 +110,27 @@ class TestNullable:
         """Test nullable with None value and log_absence disabled."""
         result = nullable(None, log_absence=False)
         assert result.is_nothing()
+
+    def test_nullable_none_value_option_log_disabled_does_not_log(self):
+        """log_absence=False must actually suppress logging, not just still work."""
+        from unittest.mock import patch
+
+        from logerr.option import logger as option_logger
+
+        with patch.object(option_logger, "bind") as mock_bind:
+            nullable(None, log_absence=False)
+        mock_bind.assert_not_called()
+
+    def test_nullable_none_value_result_log_disabled_does_not_log(self):
+        """log_absence=False must be honored for the Result branch too, not just Option."""
+        from unittest.mock import patch
+
+        from logerr.result import logger as result_logger
+
+        with patch.object(result_logger, "bind") as mock_bind:
+            result = nullable(None, return_type="result", log_absence=False)
+        assert result.is_err()
+        mock_bind.assert_not_called()
 
 
 class TestLogHelper:

@@ -3,26 +3,52 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, TypeVar, overload
+
+from .option import Option
+from .result import Result
 
 T = TypeVar("T")
 
+@overload
 def execute[T](
     f: Callable[[], T],
     *,
-    on_exception: Literal["option", "result"] = "result",
+    return_type: Literal["result"] = "result",
     default_error: Any = None,
-) -> Any:
+) -> Result[T, Exception]:
     """Safely execute a callable, wrapping result in Option or Result."""
     ...
 
+@overload
+def execute[T](
+    f: Callable[[], T],
+    *,
+    return_type: Literal["option"],
+    default_error: Any = None,
+) -> Option[T]:
+    """Safely execute a callable, wrapping result in Option or Result."""
+    ...
+
+@overload
 def nullable[T](
     value: T | None,
     *,
     error_factory: Callable[[], Any] | Any | None = None,
-    return_type: Literal["option", "result"] = "option",
+    return_type: Literal["option"] = "option",
     log_absence: bool = True,
-) -> Any:
+) -> Option[T]:
+    """Handle nullable values with configurable error strategies."""
+    ...
+
+@overload
+def nullable[T](
+    value: T | None,
+    *,
+    error_factory: Callable[[], Any] | Any | None = None,
+    return_type: Literal["result"],
+    log_absence: bool = True,
+) -> Result[T, Any]:
     """Handle nullable values with configurable error strategies."""
     ...
 

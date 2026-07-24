@@ -10,19 +10,33 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, overload
 
 from loguru import logger
 
 from .config import get_log_level, should_log
-from .option import Nothing, Some
-from .result import Err, Ok
+from .option import Nothing, Option, Some
+from .result import Err, Ok, Result
 
 
+@overload
 def execute[T](
     f: Callable[[], T],
     *,
-    on_exception: Literal["option", "result"] = "result",
+    return_type: Literal["result"] = "result",
+    default_error: Any = None,
+) -> Result[T, Exception]: ...
+@overload
+def execute[T](
+    f: Callable[[], T],
+    *,
+    return_type: Literal["option"],
+    default_error: Any = None,
+) -> Option[T]: ...
+def execute[T](
+    f: Callable[[], T],
+    *,
+    return_type: Literal["option", "result"] = "result",
     default_error: Any = None,
 ) -> Any:  # Option[T] | Result[T, Exception]
     """Safely execute a callable, wrapping result in Option or Result.
@@ -32,11 +46,11 @@ def execute[T](
 
     Args:
         f: The callable to execute safely
-        on_exception: Whether to return Option (None) or Result (Err) on exception
+        return_type: Whether to return Option (None) or Result (Err) on exception
         default_error: Default error value if exception occurs
 
     Returns:
-        Option[T] or Result[T, Exception] depending on on_exception parameter
+        Option[T] or Result[T, Exception] depending on return_type parameter
 
     Examples:
         >>> result = execute(lambda: int("42"))
@@ -48,7 +62,7 @@ def execute[T](
 
     try:
         result = f()
-        match on_exception:
+        match return_type:
             case "option":
                 return (
                     Some(result)
@@ -58,7 +72,7 @@ def execute[T](
             case "result":
                 return Ok(result)
     except Exception as e:
-        match on_exception:
+        match return_type:
             case "option":
                 return Nothing.from_exception(e)
             case "result":
@@ -67,6 +81,22 @@ def execute[T](
                 )
 
 
+@overload
+def nullable[T](
+    value: T | None,
+    *,
+    error_factory: Callable[[], Any] | Any | None = None,
+    return_type: Literal["option"] = "option",
+    log_absence: bool = True,
+) -> Option[T]: ...
+@overload
+def nullable[T](
+    value: T | None,
+    *,
+    error_factory: Callable[[], Any] | Any | None = None,
+    return_type: Literal["result"],
+    log_absence: bool = True,
+) -> Result[T, Any]: ...
 def nullable[T](
     value: T | None,
     *,
@@ -119,7 +149,10 @@ def nullable[T](
                     error = error_factory()  # type: ignore
                 case _:
                     error = error_factory  # type: ignore
-            return Err.from_value(error)
+            if log_absence:
+                return Err.from_value(error)
+            else:
+                return Err(error, _skip_logging=True)
 
 
 def log(
