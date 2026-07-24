@@ -86,42 +86,28 @@ pip install -e .
 
 ```bash
 # Install retry patterns (tenacity)
-pixi run -e retry
-# or: pip install "logerr[retry]"
+pixi run -e retry  # or: pip install "logerr[retry]"
 
 # Install dataframe/table conversion utilities (pymongo, pandas)
-pixi run -e tables
-# or: pip install "logerr[tables]"
+pixi run -e tables  # or: pip install "logerr[tables]"
 
 # Use in your code
-from logerr.recipes import retry, config, dataframes
+from logerr.recipes import retry, config
 
-@retry.on_err(max_attempts=3)
+@retry.on_err()  # retries on Err, default: 3 attempts with exponential backoff
 def flaky_operation() -> Result[int, str]:
     return Ok(42)
 
 # Functional utilities (no extra install needed - these are core)
 from logerr.utilities import validate, pipe, try_chain
 
-# Advanced configuration
-config.configure_advanced({
-    "libraries": {"my_module": {"level": "DEBUG"}},
-    "capture_locals": True
-})
+config.configure_advanced({"libraries": {"my_module": {"level": "DEBUG"}}})
 
 # NoSQL to DataFrame conversion with data quality logging
-import pandas as pd
 from logerr.recipes.dataframes import Required, from_mongo
 
-schema = {
-    "user_id": Required[str],  # Must be present
-    "email": Required[str],    # Must be present
-    "name": str,              # Optional by default
-    "age": int,               # Optional by default
-}
-
-df_result = from_mongo(db.users, {"status": "active"}, schema=schema)
-df = df_result.unwrap_or(pd.DataFrame())  # Empty DataFrame if the query failed
+schema = {"user_id": Required[str], "email": Required[str], "name": str}
+df = from_mongo(db.users, {"status": "active"}, schema=schema).unwrap_or(pd.DataFrame())
 ```
 
 ## 🔍 Why logerr?
@@ -193,76 +179,57 @@ df = df_result.unwrap_or(pd.DataFrame())  # Empty DataFrame if the query failed
 
 ```python
 from logerr import Result, Ok, Err
-from logerr.recipes import retry  # Requires: pixi install -e retry (or pip install "logerr[retry]")
+from logerr.recipes import retry  # pixi install -e retry (or pip install "logerr[retry]")
 from typing import Any
 
-@retry.on_err(max_attempts=3, log_attempts=True)
+@retry.on_err()  # retries on Err, default: 3 attempts with exponential backoff
 def connect_to_database(url: str) -> Result[Any, Exception]:
-    """Connect with automatic retry on failure"""
     try:
-        connection = database.connect(url)
-        return Ok(connection)
+        return Ok(database.connect(url))
     except ConnectionError as e:
         return Err.from_exception(e)
 
-# Alternative functional approach with retry utility
+# Alternative: functional retry utility instead of the decorator
 def connect_with_fallback() -> Result[Any, Exception]:
-    """Try primary, then backup with retry logic"""
-    return (
-        retry.with_retry(lambda: database.connect("primary-server.db"))
-        .or_else(lambda _: retry.with_retry(lambda: database.connect("backup-server.db")))
+    return retry.with_retry(lambda: database.connect("primary-server.db")).or_else(
+        lambda _: retry.with_retry(lambda: database.connect("backup-server.db"))
     )
 
-# Usage - automatic retry and logging  
 result = (
     connect_to_database("primary-server.db")
     .map(lambda conn: "Connected successfully!")
     .unwrap_or("All connection attempts failed - check logs")
 )
-
-print(result)
 ```
 
 ### Configuration Loading Pipeline
 
 ```python
-from logerr import Result, Ok, Err  
+from logerr import Result, Ok
 from logerr.utilities import execute, validate, resolve
-import json
-from pathlib import Path
 
 def load_config(path: str) -> Result[dict, str]:
-    """Load and validate configuration using functional utilities."""
     return (
-        execute(lambda: Path(path).read_text())
+        execute(lambda: open(path).read())
         .then(lambda text: execute(lambda: json.loads(text)))
         .then(validate_config)
         .map_err(lambda e: f"Config error in {path}: {e}")
     )
 
 def validate_config(config: dict) -> Result[dict, str]:
-    """Validate required configuration keys using validation utility."""
-    required_keys = ["database_url", "api_key"]
-    
+    required = ["database_url", "api_key"]
     return (
-        validate(
-            config,
-            lambda cfg: all(key in cfg for key in required_keys),
-            error_factory=None,
-        )
-        .map_err(lambda _: f"Missing required keys: {[k for k in required_keys if k not in config]}")
+        validate(config, lambda cfg: all(k in cfg for k in required), error_factory=None)
+        .map_err(lambda _: f"Missing keys: {[k for k in required if k not in config]}")
         .map(lambda _: config)
     )
 
 # Functional pipeline with fallback configuration
-default_config = {
-    "database_url": "sqlite:///default.db", 
-    "api_key": "demo-key"
-}
+default_config = {"database_url": "sqlite:///default.db", "api_key": "demo-key"}
 
 config = (
     load_config("app.json")
-    .or_default(default_config)
+    .or_else(lambda _: Ok(default_config))
     .map(lambda cfg: resolve(cfg.get("database_url"), default=default_config["database_url"]))
     .unwrap()
 )
@@ -275,25 +242,22 @@ from logerr import Option
 from logerr.utilities import nullable, validate, attribute
 
 def process_user_data(data: dict) -> Option[str]:
-    """Extract and format user display name using functional utilities."""
     return (
         nullable(data.get("user"))
-        .then(lambda user: nullable(user.get("profile")))  
+        .then(lambda user: nullable(user.get("profile")))
         .then(lambda profile: nullable(profile.get("name")))
-        .then(lambda name: validate(name, lambda n: len(n.strip()) > 0, None))
+        .then(lambda name: validate(name, lambda n: len(n.strip()) > 0, error_factory=None, return_type="option"))
         .map(str.title)
-        .map(lambda name: f"👋 {name}")  # Add greeting emoji
+        .map(lambda name: f"👋 {name}")
     )
 
 def get_user_role(data: dict) -> Option[str]:
-    """Get user role with fallback using attribute utility."""
     return (
-        nullable(data.get("user"))  
-        .map(lambda user: attribute(user, "role", "member"))  # Default to "member"
+        nullable(data.get("user"))
+        .map(lambda user: attribute(user, "role", "member"))  # default to "member"
         .filter(lambda role: role in ["admin", "member", "guest"])
     )
 
-# Usage with functional pipeline
 user_data = {"user": {"profile": {"name": "alice smith"}, "role": "admin"}}
 
 greeting = (
@@ -301,55 +265,41 @@ greeting = (
     .then(lambda name: get_user_role(user_data).map(lambda role: f"{name} (Role: {role})"))
     .unwrap_or("👋 Anonymous User")
 )
-
-print(greeting)  # 👋 Alice Smith (Role: admin)
+# greeting == "👋 Alice Smith (Role: admin)"
 ```
 
 ### NoSQL to DataFrame with Data Quality Logging
 
 ```python
-from datetime import datetime
-
 from logerr.recipes.dataframes import Required, from_mongo
 from logerr import configure
 
-# Configure logging for data quality reports
-configure(level="INFO")
+configure(level="INFO")  # data quality reports log at INFO
 
-# Define schema: Required fields must be present, others are optional by default
+# Required fields error if missing; other fields are optional by default
 schema = {
-    "user_id": Required[str],      # Must be present - error if missing
-    "email": Required[str],        # Must be present - error if missing
-    "name": str,                  # Optional[str] by default
-    "age": int,                   # Optional[int] by default  
-    "bio": str,                   # Optional[str] by default
-    "preferences": dict,          # Optional[dict] by default
-    "created_at": datetime,       # Optional[datetime] by default
-    "tags": list[str],           # Optional[list[str]] by default
+    "user_id": Required[str],
+    "email": Required[str],
+    "name": str,
+    "age": int,
 }
 
-# Safe MongoDB querying with automatic data quality logging
 result = from_mongo(
     collection=db.users,
-    query={"status": "active", "last_login": {"$gte": last_month}}, 
+    query={"status": "active", "last_login": {"$gte": last_month}},
     schema=schema,
-    log_missing_data=True,        # Enable data quality reporting
-    report_name="active_users"
+    report_name="active_users",
 )
 
-# Handle the result functionally
 df = (
     result
-    .map(lambda df: df[df['age'].notna()])  # Filter out users without age
-    .map(lambda df: df.fillna({"bio": "No bio provided"}))  # Fill missing bios
+    .map(lambda df: df[df["age"].notna()])  # drop rows missing age
     .unwrap_or_else(lambda error: handle_data_error(error))
 )
 
 # Automatic logging output:
-# 2024-01-15 14:23:12 | INFO    | Data Quality Summary for 'active_users': 1847/2000 records processed successfully (92.4% success rate)
-# 2024-01-15 14:23:12 | WARNING | Field 'bio': 612/2000 missing (30.6% missing rate)  
-# 2024-01-15 14:23:12 | ERROR   | Missing required field 'email' in 153/2000 records - excluding from DataFrame
-# 2024-01-15 14:23:12 | WARNING | Field 'age': 23 type conversion errors (1.2% of present values)
+# INFO    | Data Quality Summary for 'active_users': 1847/2000 records processed successfully (92.4%)
+# ERROR   | Missing required field 'email' in 153/2000 records - excluding from DataFrame
 ```
 
 ## ⚙️ Configuration
@@ -379,21 +329,18 @@ small):
 ```python
 from logerr.recipes.config import configure_advanced, configure_from_confection
 
-# Advanced configuration with per-library settings
 configure_advanced({
-    "enabled": True,
-    "level": "WARNING", 
+    "level": "WARNING",
     "libraries": {
         "myapp.database": {"level": "ERROR"},
         "myapp.api": {"level": "DEBUG"},
-        "third_party_lib": {"enabled": False}
+        "third_party_lib": {"enabled": False},
     },
     "capture_locals": True,
-    "capture_filename": True
 })
 
-# Load from a confection config file (see the Configuration guide for the
-# expected [logerr] file format)
+# Or load the same settings from a confection config file (see the
+# Configuration guide for the expected [logerr] file format)
 configure_from_confection("config.cfg")
 ```
 
