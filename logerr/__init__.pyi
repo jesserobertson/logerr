@@ -2,7 +2,7 @@
 
 from . import option as option
 from . import result as result
-from . import utils as utils
+from . import utilities as utilities
 from .config import configure as configure
 from .config import get_config as get_config
 from .config import reset_config as reset_config
@@ -27,5 +27,5 @@ __all__ = [
     "reset_config",
     "result",
     "option",
-    "utils",
+    "utilities",
 ]

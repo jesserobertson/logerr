@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...utils import log
+from ...utilities import log
 from .types import FieldSpec
 
 

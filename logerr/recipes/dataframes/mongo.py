@@ -11,7 +11,7 @@ import importlib
 from typing import Any, Literal
 
 from ...result import Err, Result
-from ...utils import execute, log
+from ...utilities import execute, log
 from .conversion import (
     convert_document_to_row,
     infer_schema_from_documents,

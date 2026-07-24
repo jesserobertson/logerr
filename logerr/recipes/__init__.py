@@ -4,7 +4,8 @@ logerr.recipes: Optional extended functionality for logerr.
 This module provides additional utilities and patterns for logerr that
 may not be needed by all users. Install with:
 
-    pixi run -e recipes
+    pixi run -e retry   # tenacity-based retry patterns
+    pixi run -e tables  # pymongo/pandas dataframe conversion
 
 Available modules:
 - retry: Comprehensive retry patterns with tenacity integration
@@ -55,7 +56,7 @@ except ImportError:
     import warnings
 
     warnings.warn(
-        "logerr.recipes.retry requires tenacity. Install with: pixi run -e recipes",
+        "logerr.recipes.retry requires tenacity. Install with: pixi run -e retry",
         ImportWarning,
         stacklevel=2,
     )
@@ -70,7 +71,7 @@ if not dataframes_available:
 
     warnings.warn(
         "logerr.recipes.dataframes requires pymongo and pandas. "
-        "Install with: pixi run -e recipes",
+        "Install with: pixi run -e tables",
         ImportWarning,
         stacklevel=2,
     )

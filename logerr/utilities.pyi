@@ -1,4 +1,4 @@
-"""Type stubs for logerr.utils module."""
+"""Type stubs for logerr.utilities module."""
 
 from __future__ import annotations
 

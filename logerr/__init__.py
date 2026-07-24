@@ -9,7 +9,7 @@ __version__ = "0.1.0"
 
 # Re-export main types
 # Import modules for namespaced factory functions
-from . import option, result, utils
+from . import option, result, utilities
 from .config import configure, get_config, reset_config
 from .option import Nothing, Option, Some
 from .result import Err, Ok, Result
@@ -26,5 +26,5 @@ __all__ = [
     "reset_config",
     "result",
     "option",
-    "utils",
+    "utilities",
 ]

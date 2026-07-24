@@ -1,10 +1,10 @@
 """
-Tests for core utility functions in logerr.utils module.
+Tests for core utility functions in logerr.utilities module.
 """
 
 import pytest
 
-from logerr.utils import execute, log, nullable
+from logerr.utilities import execute, log, nullable
 
 pytestmark = pytest.mark.unit
 

@@ -21,15 +21,20 @@ Key features:
 - `pixi shell` - Activate the pixi environment
 - `pixi shell --feature dev` - Activate environment with dev dependencies
 - `pixi shell --feature docs` - Activate environment with documentation dependencies
-- `pixi shell --feature recipes` - Activate environment with recipes module (retry patterns)
+- `pixi shell --feature retry` - Activate environment with retry recipes (tenacity)
+- `pixi shell --feature tables` - Activate environment with dataframe/table recipes (pandas, pymongo)
 
 ### Testing and Quality
-- `pixi run -e dev test` - Run test suite (fast tests only, excludes slow tests)
-- `pixi run -e dev test-all` - Run all tests including doctests from documentation and README
-- `pixi run -e dev pytest <args>` - Run pytest with custom arguments and flags
-- `pixi run -e dev typecheck` - Run type checking with mypy
-- `pixi run -e dev quality` - Run code quality checks (ruff lint + format check)
-- `pixi run -e dev check-all` - Run all checks (test, typecheck, quality) - **REQUIRED BEFORE COMMITS**
+
+`test` and `quality` are Typer apps (`scripts/test.py`, `scripts/quality.py`) and require a subcommand — running `pixi run -e dev test` bare errors with "Missing command"; `pixi run -e dev quality` bare defaults to `quality check`.
+
+- `pixi run -e dev test fast` - Run fast tests only (excludes slow tests)
+- `pixi run -e dev test unit` / `test integration` - Run a specific test tier
+- `pixi run -e dev test all` - Run all tests including doctests from documentation and README
+- `pixi run -e dev pytest <args>` - Run pytest directly with custom arguments and flags
+- `pixi run -e dev quality typecheck` - Run type checking with mypy
+- `pixi run -e dev quality` - Run all quality checks (mypy typecheck + ruff lint + format check)
+- `pixi run -e dev check-all` - Run all checks (test all + quality) - **REQUIRED BEFORE COMMITS**
 
 #### Available Test Markers:
 - `unit` - Unit tests for core functionality
@@ -56,7 +61,7 @@ pixi run -e dev pytest tests/ --doctest-modules logerr -m "not slow" --cov=loger
 pixi run -e dev pytest tests/ --doctest-modules logerr --cov=logerr
 
 # Run specific test file
-pixi run -e dev pytest tests/test_option.py -v
+pixi run -e dev pytest tests/unit/test_option.py -v
 
 # Run with specific coverage report
 pixi run -e dev pytest tests/ --cov=logerr --cov-report=html -m unit
@@ -70,47 +75,60 @@ pixi run -e dev pytest tests/ --cov=logerr --cov-report=html -m unit
 - Add dependencies: `pixi add <package-name>`
 - Add development dependencies: `pixi add --feature dev <package-name>`
 - Add documentation dependencies: `pixi add --feature docs <package-name>`
-- Add recipes dependencies: `pixi add --feature recipes <package-name>`
+- Add retry dependencies: `pixi add --feature retry <package-name>`
+- Add tables dependencies: `pixi add --feature tables <package-name>`
 - Remove dependencies: `pixi remove <package-name>`
 
 ## Project Structure
 
 ```
 logerr/
-├── logerr/           # Main library package
-│   ├── __init__.py   # Main exports (Option, Some, Nothing, Result, Ok, Err)
-│   ├── option.py     # Option<T>, Some<T>, Nothing implementation
-│   ├── result.py     # Result<T, E>, Ok<T>, Err<E> implementation
-│   ├── config.py     # Configuration management via confection
-│   ├── utils.py      # Reusable utility functions for functional patterns
-│   ├── protocols.py  # Type protocols for comparison support
-│   └── recipes/      # Optional extended functionality
+├── logerr/                    # Main library package
+│   ├── __init__.py            # Main exports (Option, Some, Nothing, Result, Ok, Err)
+│   ├── option.py               # Option<T>, Some<T>, Nothing implementation
+│   ├── result.py               # Result<T, E>, Ok<T>, Err<E> implementation
+│   ├── config.py               # Core configuration (basic enabled/level)
+│   ├── utilities.py            # Core utility functions (execute, nullable, log)
+│   ├── protocols.py             # Type protocols for comparison support
+│   └── recipes/                # Optional extended functionality
 │       ├── __init__.py
-│       └── retry.py  # Retry decorators and utilities with tenacity integration
-├── docs/             # Documentation
-│   ├── api/          # API reference documentation  
+│       ├── config.py            # Advanced per-library/confection config
+│       ├── utilities.py         # Advanced utils (validate, resolve, chain, attribute, error, pipe, try_chain)
+│       ├── retry.py             # Retry decorators/utilities (feature: retry, needs tenacity)
+│       └── dataframes/          # DataFrame/Mongo conversion (feature: tables, needs pandas/pymongo)
+│           ├── __init__.py
+│           ├── conversion.py
+│           ├── mongo.py
+│           ├── quality.py
+│           └── types.py
+├── scripts/                    # Typer-based task scripts invoked by pixi tasks
+│   ├── test.py                  # test task (unit/integration/all/fast/clean)
+│   ├── quality.py                # quality task (lint/format/typecheck/check/fix)
+│   ├── dev.py
+│   ├── build.py
+│   └── docs.py
+├── docs/                       # Documentation
+│   ├── api/                     # API reference documentation
 │   │   ├── config.md
 │   │   ├── option.md
 │   │   └── result.md
-│   ├── guide/        # User guides
+│   ├── guide/                    # User guides
 │   │   ├── getting-started.md
 │   │   ├── result-types.md
 │   │   ├── option-types.md
 │   │   ├── configuration.md
 │   │   └── examples.md
-│   └── index.md      # Documentation homepage
-├── tests/            # Test package
-│   ├── test_api.py
-│   ├── test_comparisons.py
-│   ├── test_enhanced_predicates.py
-│   ├── test_option.py
-│   ├── test_result.py
-│   ├── test_retry.py
-│   └── test_utils.py
-├── mkdocs.yml        # Documentation configuration
-├── pixi.toml         # Project configuration and dependencies
-├── README.md         # Project README
-└── CLAUDE.md         # This file
+│   └── index.md                 # Documentation homepage
+├── tests/                       # Test package
+│   ├── conftest.py
+│   ├── unit/                     # Core Option/Result/utils tests + hypothesis property tests
+│   ├── integration/               # Cross-type integration tests
+│   └── recipes/                   # Tests for recipes/ (retry, config, utilities, dataframes/)
+├── mkdocs.yml                    # Documentation configuration
+├── pixi.toml                     # Project configuration and dependencies
+├── pyproject.toml                # PyPI packaging configuration
+├── README.md                     # Project README
+└── CLAUDE.md                     # This file
 ```
 
 ## Dependencies
@@ -119,8 +137,12 @@ logerr/
 - **loguru**: Automatic logging of Result/Err cases
 - **confection**: Configuration management
 
-### Optional Dependencies (feature: recipes)  
+### Optional Dependencies (feature: retry)
 - **tenacity**: Retry decorators and utilities for resilient operations
+
+### Optional Dependencies (feature: tables)
+- **pandas**: DataFrame conversion for recipes.dataframes
+- **pymongo**: MongoDB access for recipes.dataframes
 
 ### Development Dependencies (feature: dev)
 - **pytest**: Test framework
@@ -196,18 +218,18 @@ def load_config(path: str) -> Result[Config, Exception]:
 - Prefer `Result.from_callable`, `Result.from_predicate`, `Option.from_nullable` over manual construction
 - Use method chaining (.and_then, .map, .filter) for sequential operations
 - Avoid deep nesting - flatten with functional composition
-- **Use utility functions from `logerr.utils` for common patterns**
+- **Use utility functions from `logerr.utilities` (core) or `logerr.recipes.utilities` (advanced) for common patterns**
 
 ## Common Functional Patterns & Utilities
 
-The `logerr.utils` module provides reusable utility functions for common functional patterns. These eliminate code duplication and provide consistent APIs across the library.
+`logerr.utilities` provides the core utility functions (`execute`, `nullable`, `log`) used by the base library. `logerr.recipes.utilities` (part of the optional `recipes` functionality) adds more advanced patterns (`validate`, `resolve`, `chain`, `attribute`, `error`, `pipe`, `try_chain`). Note that `logerr/utilities.py` cannot itself import from `logerr.recipes` — that would be a circular import — so the split is a real architectural boundary, not just an organizational choice.
 
 ### **Safe Execution Pattern**
 Use `execute()` instead of manual try/catch blocks:
 
 ```python
 # Good: Using utility function
-from logerr.utils import execute
+from logerr.utilities import execute
 
 result = execute(lambda: risky_operation())
 option_result = execute(lambda: maybe_none(), on_exception="option")
@@ -225,7 +247,7 @@ Use `nullable()` for consistent None handling:
 
 ```python
 # Good: Standardized nullable handling
-from logerr.utils import nullable
+from logerr.utilities import nullable
 
 def get_config_value(key: str) -> Option[str]:
     raw_value = config.get(key)
@@ -241,11 +263,11 @@ def validate_required_field(value: str | None) -> Result[str, ValueError]:
 ```
 
 ### **Validation with Predicates**
-Use `validate()` for consistent validation logic:
+Use `validate()` (from `logerr.recipes.utilities`) for consistent validation logic:
 
 ```python
 # Good: Reusable validation pattern
-from logerr.utils import validate, error
+from logerr.recipes.utilities import validate, error
 
 def validate_log_level(level: str) -> Result[str, ValueError]:
     valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -257,11 +279,11 @@ def validate_log_level(level: str) -> Result[str, ValueError]:
 ```
 
 ### **Safe Attribute Access**
-Use `attribute()` for exception-safe attribute access:
+Use `attribute()` (from `logerr.recipes.utilities`) for exception-safe attribute access:
 
 ```python
 # Good: Safe attribute access
-from logerr.utils import attribute
+from logerr.recipes.utilities import attribute
 
 func_name = attribute(func, "__name__", "callable")
 logger.debug(f"Executing {func_name}")
@@ -275,7 +297,7 @@ Use `log()` for consistent logging with caller information:
 
 ```python
 # Good: Centralized context logging
-from logerr.utils import log
+from logerr.utilities import log
 
 def handle_error(error: Exception) -> None:
     log(
@@ -286,11 +308,11 @@ def handle_error(error: Exception) -> None:
 ```
 
 ### **Parameter Resolution**
-Use `resolve()` for consistent parameter handling:
+Use `resolve()` (from `logerr.recipes.utilities`) for consistent parameter handling:
 
 ```python
 # Good: Functional parameter resolution
-from logerr.utils import resolve
+from logerr.recipes.utilities import resolve
 
 def retry_operation(max_attempts: int | None = None) -> None:
     actual_attempts = resolve(
@@ -302,16 +324,25 @@ def retry_operation(max_attempts: int | None = None) -> None:
 
 ### **Available Utility Functions**
 
+**`logerr.utilities`** (core, no extra dependencies):
+
 | Function | Purpose | Common Use Cases |
 |----------|---------|------------------|
 | `execute()` | Execute callables with automatic Result/Option wrapping | Factory functions, risky operations |
 | `nullable()` | Convert None values to appropriate types | Configuration loading, optional parameters |
-| `validate()` | Predicate-based validation with consistent error handling | Input validation, constraint checking |
 | `log()` | Context-aware logging with caller information | Error logging, debugging |
+
+**`logerr.recipes.utilities`** (advanced, part of optional recipes functionality):
+
+| Function | Purpose | Common Use Cases |
+|----------|---------|------------------|
+| `validate()` | Predicate-based validation with consistent error handling | Input validation, constraint checking |
 | `resolve()` | Parameter resolution with validation | Function parameters, configuration merging |
 | `chain()` | Exception-safe method chaining | Monadic operations (map, and_then) |
 | `attribute()` | Safe attribute access | Getting function names, object properties |
 | `error()` | Standardized validation error messages | Consistent error formatting |
+| `pipe()` | Pipeline-style composition of functions | Multi-step transforms without nesting |
+| `try_chain()` | Try callables in order, return first success | Fallback strategies |
 
 ## API Structure
 
@@ -324,7 +355,11 @@ from logerr import Ok, Err, Some, Nothing, Result, Option
 
 ### Configuration Functions
 ```python
-from logerr import configure, configure_from_confection, get_config, reset_config
+# Core (basic enabled/level toggle)
+from logerr import configure, get_config, reset_config
+
+# Advanced (per-library config, confection files) — not exported at top level
+from logerr.recipes.config import configure_advanced, configure_from_confection
 ```
 
 ### Factory Functions (Class Methods)
@@ -343,17 +378,26 @@ option = Option.from_predicate(value, lambda x: x > 0)
 
 ### Configuration Examples
 ```python
-# Basic configuration
-logerr.configure({"level": "WARNING", "libraries": {"mylib": {"level": "DEBUG"}}})
-
-# From configuration file
-logerr.configure_from_confection("config.cfg")
+# Core configuration — flat kwargs only, no dict/libraries support
+logerr.configure(enabled=True, level="WARNING")
 
 # Get current configuration
 config = logerr.get_config()
 
 # Reset to defaults
 logerr.reset_config()
+```
+
+Per-library config and confection-file loading are advanced features in `logerr.recipes.config`, not the core API:
+
+```python
+from logerr.recipes.config import configure_advanced, configure_from_confection
+
+# Per-library configuration (dict-based)
+configure_advanced({"level": "WARNING", "libraries": {"mylib": {"level": "DEBUG"}}})
+
+# From a confection config file (expects a top-level "logerr" section)
+configure_from_confection("config.cfg")
 ```
 
 
@@ -373,9 +417,9 @@ logerr.reset_config()
    - Tests are available as manual pre-commit hook
 
 3. **Individual quality commands**:
-   - `pixi run -e dev test` - Run test suite
-   - `pixi run -e dev typecheck` - Run mypy type checking
-   - `pixi run -e dev quality` - Run ruff lint + format checks
+   - `pixi run -e dev test fast` - Run test suite (fast tests only)
+   - `pixi run -e dev quality typecheck` - Run mypy type checking
+   - `pixi run -e dev quality` - Run mypy typecheck + ruff lint + format checks
 
 ## Configuration
 

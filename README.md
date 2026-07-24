@@ -84,8 +84,13 @@ pip install -e .
 **Recipes Module**: Advanced patterns and utilities for specialized use cases:
 
 ```bash
-# Install with recipes (includes retry patterns, advanced utilities, config, and dataframes)
-pixi run -e recipes
+# Install retry patterns (tenacity)
+pixi run -e retry
+# or: pip install "logerr[retry]"
+
+# Install dataframe/table conversion utilities (pymongo, pandas)
+pixi run -e tables
+# or: pip install "logerr[tables]"
 
 # Use in your code
 from logerr.recipes import retry, utilities, config, dataframes
@@ -140,7 +145,7 @@ df = df_result.unwrap_or_default()
 **With logerr** (automatic logging + functional style):
 ```python
 >>> from logerr import Result
->>> from logerr.utils import execute
+>>> from logerr.utilities import execute
 >>> import json
 
 >>> def load_config():
@@ -186,7 +191,7 @@ df = df_result.unwrap_or_default()
 
 ```python
 from logerr import Result, Ok, Err
-from logerr.recipes import retry  # Requires: pixi install --feature recipes
+from logerr.recipes import retry  # Requires: pixi install --feature retry
 from typing import Any
 
 @retry.on_err(max_attempts=3, log_attempts=True)
@@ -220,7 +225,8 @@ print(result)
 
 ```python
 from logerr import Result, Ok, Err  
-from logerr.utils import execute, validate, resolve
+from logerr.utilities import execute
+from logerr.recipes.utilities import validate, resolve
 import json
 from pathlib import Path
 
@@ -261,7 +267,8 @@ config = (
 
 ```python
 from logerr import Option
-from logerr.utils import nullable, validate, attribute
+from logerr.utilities import nullable
+from logerr.recipes.utilities import validate, attribute
 
 def process_user_data(data: dict) -> Option[str]:
     """Extract and format user display name using functional utilities."""
@@ -389,8 +396,9 @@ This project uses [pixi](https://pixi.sh) for development:
 # Install dependencies
 pixi install
 
-# Install with recipes module for advanced patterns and utilities
-pixi run -e recipes
+# Install with retry/tables modules for advanced patterns and utilities
+pixi run -e retry
+pixi run -e tables
 
 # Run tests
 pixi run -e dev test

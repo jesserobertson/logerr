@@ -2,7 +2,7 @@
 Advanced utility functions for functional patterns in logerr.
 
 These utilities provide sophisticated patterns that extend beyond the core
-Option/Result functionality. For basic utilities, use logerr.utils
+Option/Result functionality. For basic utilities, use logerr.utilities
 """
 
 from __future__ import annotations

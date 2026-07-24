@@ -218,8 +218,8 @@ logerr/option.py
 logerr/option.pyi
 logerr/result.py  
 logerr/result.pyi
-logerr/utils.py
-logerr/utils.pyi
+logerr/utilities.py
+logerr/utilities.pyi
 logerr/protocols.py
 logerr/protocols.pyi
 logerr/py.typed
