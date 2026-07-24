@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 from typing import Any, Literal
 
+from ...itertools import partition_result
 from ...result import Err, Result
 from ...utilities import execute, log
 from .conversion import (
@@ -199,29 +200,22 @@ def _documents_to_dataframe(
         required_fields = {spec.name for spec in schema_fields if spec.is_required}
         quality_tracker.set_required_fields(required_fields)
 
-    # Convert each document to a row
-    successful_rows = []
-
+    # Convert each document to a row. Failed rows are skipped rather than
+    # failing the entire operation, so we partition (not sequence/traverse,
+    # which would short-circuit on the first Err) into successes and errors.
+    row_results = []
     for doc in documents:
         if quality_tracker:
             quality_tracker.record_document(doc)
+        row_results.append(convert_document_to_row(doc, schema_fields, quality_tracker))
 
-        row_result = convert_document_to_row(doc, schema_fields, quality_tracker)
+    successful_rows, error_messages = partition_result(row_results)
 
-        if row_result.is_ok():
-            successful_rows.append(row_result.unwrap())
-            if quality_tracker:
-                quality_tracker.record_successful_conversion()
-        else:
-            if quality_tracker:
-                # Work around mypy issue with unwrap_err on Result[T, str]
-                error_msg = (
-                    str(row_result).replace("Err(", "").replace(")", "")
-                    if "Err(" in str(row_result)
-                    else "unknown error"
-                )
-                quality_tracker.record_failed_conversion(error_msg)
-            # Skip failed rows rather than failing entire operation
+    if quality_tracker:
+        for _ in successful_rows:
+            quality_tracker.record_successful_conversion()
+        for error_msg in error_messages:
+            quality_tracker.record_failed_conversion(error_msg)
 
     if not successful_rows:
         error_msg = f"No valid rows could be created from {len(documents)} documents"
