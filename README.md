@@ -104,6 +104,7 @@ from logerr.utilities import validate, pipe, try_chain
 config.configure_advanced({"libraries": {"my_module": {"level": "DEBUG"}}})
 
 # NoSQL to DataFrame conversion with data quality logging
+import pandas as pd
 from logerr.recipes.dataframes import Required, from_mongo
 
 schema = {"user_id": Required[str], "email": Required[str], "name": str}
@@ -205,6 +206,7 @@ result = (
 ### Configuration Loading Pipeline
 
 ```python
+import json
 from logerr import Result, Ok
 from logerr.utilities import execute, validate, resolve
 
