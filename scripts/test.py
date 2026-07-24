@@ -129,6 +129,7 @@ def all(
         "tests/",
         "docs/",
         "README.md",
+        "--ignore=docs/superpowers",
         "--doctest-modules",
         "logerr",
         "--doctest-glob=*.md",

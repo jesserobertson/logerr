@@ -477,3 +477,62 @@ class TestIntegrationWithResult:
 
         assert result2.is_err()
         assert "Option was Nothing" in str(result2._error)
+
+
+class TestOptionCombinatorMethods:
+    """Test that zip/flatten/and_/or_ methods delegate to logerr.functools."""
+
+    def test_some_zip_some(self):
+        result = Some(1).zip(Some("a"))
+        assert result.is_some()
+        assert result.unwrap() == (1, "a")
+
+    def test_some_zip_nothing(self):
+        result = Some(1).zip(Nothing.empty())
+        assert result.is_nothing()
+
+    def test_nothing_zip(self):
+        result = Nothing.empty().zip(Some(1))
+        assert result.is_nothing()
+
+    def test_some_flatten(self):
+        result = Some(Some(42)).flatten()
+        assert result.is_some()
+        assert result.unwrap() == 42
+
+    def test_nothing_flatten(self):
+        result = Nothing.empty().flatten()
+        assert result.is_nothing()
+
+    def test_some_and(self):
+        result = Some(1).and_(Some("a"))
+        assert result.is_some()
+        assert result.unwrap() == "a"
+
+    def test_nothing_and(self):
+        result = Nothing.empty().and_(Some("a"))
+        assert result.is_nothing()
+
+    def test_some_or(self):
+        result = Some(1).or_(Some(2))
+        assert result.is_some()
+        assert result.unwrap() == 1
+
+    def test_nothing_or(self):
+        result = Nothing.empty().or_(Some(2))
+        assert result.is_some()
+        assert result.unwrap() == 2
+
+    def test_some_iter(self):
+        assert list(Some(42)) == [42]
+
+    def test_nothing_iter(self):
+        assert list(Nothing.empty()) == []
+
+    def test_builtin_zip_works_via_iter(self):
+        """Once Option is iterable, Python's own zip() works directly -
+        no bespoke logerr zip wrapper needed. strict=False is explicit
+        because Option/Nothing legitimately yield different counts
+        (0 or 1) by design - that's not a bug to catch here."""
+        assert list(zip(Some(1), Some("a"), strict=False)) == [(1, "a")]
+        assert list(zip(Nothing.empty(), Some("a"), strict=False)) == []

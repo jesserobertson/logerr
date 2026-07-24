@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any, TypeVar
 
 from loguru import logger
@@ -297,6 +297,92 @@ class Option[T](ABC):
         """
         pass
 
+    @abstractmethod
+    def __iter__(self) -> Iterator[T]:
+        """Iterate over the contained value, 0 or 1 times.
+
+        Matches Rust's Option::iter() - lets Option compose with the
+        standard iterator toolkit (zip, itertools, etc.) directly.
+
+        Returns:
+            An iterator yielding the value once if Some, or nothing if
+            Nothing.
+
+        Examples:
+            >>> list(Some(42))
+            [42]
+            >>> list(Nothing.empty())
+            []
+        """
+        pass
+
+    @abstractmethod
+    def zip[U](self, other: Option[U]) -> Option[tuple[T, U]]:
+        """Combine this Option with another into an Option of a tuple.
+
+        Args:
+            other: The Option to combine with.
+
+        Returns:
+            Some((value, other_value)) if both are Some, otherwise Nothing.
+
+        Examples:
+            >>> Some(1).zip(Some("a"))
+            Some((1, 'a'))
+            >>> Some(1).zip(Nothing.empty())  # doctest: +ELLIPSIS
+            Nothing(...)
+        """
+        pass
+
+    @abstractmethod
+    def flatten(self: Option[Option[T]]) -> Option[T]:
+        """Flatten a nested Option by one level.
+
+        Returns:
+            The inner Option if this is Some, otherwise Nothing.
+
+        Examples:
+            >>> Some(Some(42)).flatten()
+            Some(42)
+        """
+        pass
+
+    @abstractmethod
+    def and_[U](self, other: Option[U]) -> Option[U]:
+        """Return `other` if this is Some, otherwise Nothing.
+
+        Args:
+            other: The Option to return if this is Some.
+
+        Returns:
+            `other` if this is Some, otherwise Nothing.
+
+        Examples:
+            >>> Some(1).and_(Some("a"))
+            Some('a')
+            >>> Nothing.empty().and_(Some("a"))  # doctest: +ELLIPSIS
+            Nothing(...)
+        """
+        pass
+
+    @abstractmethod
+    def or_(self, other: Option[T]) -> Option[T]:
+        """Return this Option if Some, otherwise `other`.
+
+        Args:
+            other: The fallback Option if this is Nothing.
+
+        Returns:
+            This Option if Some, otherwise `other`.
+
+        Examples:
+            >>> Some(1).or_(Some(2))
+            Some(1)
+            >>> Nothing.empty().or_(Some(2))
+            Some(2)
+        """
+        pass
+
     @classmethod
     def from_nullable(cls, value: T | None) -> Option[T]:
         """Create an Option from a potentially None value."""
@@ -404,6 +490,29 @@ class Some[T](Option[T]):
 
     def ok_or_else(self, err_fn: Callable[[], E]) -> Result[T, E]:
         return Ok(self._value)
+
+    def __iter__(self) -> Iterator[T]:
+        yield self._value
+
+    def zip[U](self, other: Option[U]) -> Option[tuple[T, U]]:
+        from .functools import zip_option
+
+        return zip_option(self, other)
+
+    def flatten(self: Some[Option[T]]) -> Option[T]:
+        from .functools import flatten_option
+
+        return flatten_option(self)
+
+    def and_[U](self, other: Option[U]) -> Option[U]:
+        from .functools import and_option
+
+        return and_option(self, other)
+
+    def or_(self, other: Option[T]) -> Option[T]:
+        from .functools import or_option
+
+        return or_option(self, other)
 
     def __repr__(self) -> str:
         return f"Some({self._value!r})"
@@ -653,6 +762,29 @@ class Nothing[T](Option[T]):
 
     def ok_or_else(self, err_fn: Callable[[], E]) -> Result[T, E]:
         return Err(err_fn())
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(())
+
+    def zip[U](self, other: Option[U]) -> Option[tuple[T, U]]:
+        from .functools import zip_option
+
+        return zip_option(self, other)
+
+    def flatten(self: Nothing[Option[T]]) -> Option[T]:
+        from .functools import flatten_option
+
+        return flatten_option(self)
+
+    def and_[U](self, other: Option[U]) -> Option[U]:
+        from .functools import and_option
+
+        return and_option(self, other)
+
+    def or_(self, other: Option[T]) -> Option[T]:
+        from .functools import or_option
+
+        return or_option(self, other)
 
     def __repr__(self) -> str:
         return f"Nothing({self._reason!r})"
