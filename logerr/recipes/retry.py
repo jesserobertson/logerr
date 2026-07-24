@@ -79,21 +79,17 @@ def on_err(
                         last_result = result
 
                         if result.is_err():
+                            error = result.unwrap_err()
                             if log_attempts:
-                                error_msg = getattr(result, "_error", "unknown error")
                                 logger.debug(
-                                    f"Attempt {attempt_count} of {func_name} failed: {error_msg}"
+                                    f"Attempt {attempt_count} of {func_name} failed: {error}"
                                 )
 
                             # Convert to exception for tenacity
-                            if hasattr(result, "_error"):
-                                error = result._error  # type: ignore
-                                if isinstance(error, Exception):
-                                    raise error
-                                else:
-                                    raise ValueError(f"Operation failed: {error}")
+                            if isinstance(error, Exception):
+                                raise error
                             else:
-                                raise ValueError("Operation failed")
+                                raise ValueError(f"Operation failed: {error}")
 
                         # Success case
                         if log_attempts and attempt_count > 1:
@@ -166,8 +162,8 @@ def on_err_type(
                         result = func(*args, **kwargs)
                         last_result = result
 
-                        if result.is_err() and hasattr(result, "_error"):
-                            error = result._error  # type: ignore
+                        if result.is_err():
+                            error = result.unwrap_err()
 
                             # Only retry if error is one of the specified types
                             if isinstance(error, error_types):
@@ -337,21 +333,15 @@ def until_ok[T, E](
                         )
                     return result
                 else:
+                    error = result.unwrap_err()
                     if log_attempts:
-                        error_msg = getattr(result, "_error", "unknown error")
-                        logger.debug(
-                            f"Attempt {attempt_count} returned Err: {error_msg}"
-                        )
+                        logger.debug(f"Attempt {attempt_count} returned Err: {error}")
 
                     # Create an exception to trigger tenacity retry
-                    if hasattr(result, "_error"):
-                        error = result._error  # type: ignore
-                        if isinstance(error, Exception):
-                            raise error
-                        else:
-                            raise ValueError(f"Operation returned Err: {error}")
+                    if isinstance(error, Exception):
+                        raise error
                     else:
-                        raise ValueError("Operation returned Err")
+                        raise ValueError(f"Operation returned Err: {error}")
 
     except RetryError:
         if log_attempts:
