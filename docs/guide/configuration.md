@@ -175,6 +175,10 @@ configuration but still want `logerr.get_config()` to reflect the global
 >>> get_config().enabled
 False
 
+>>> # Restore defaults so later examples aren't affected by enabled=False
+>>> reset_advanced_config()
+>>> reset_config()
+
 ```
 
 ## File-Based Configuration
