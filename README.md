@@ -42,6 +42,24 @@
 
 **✨ The key difference:** Errors are **automatically logged** with full context - no manual logging required!
 
+See it in action - no manual logging call, just automatic capture of the error context:
+
+```python
+>>> import sys
+>>> from loguru import logger
+>>> import logerr
+>>> _ = logerr.configure(enabled=True, level="ERROR")  # deterministic for this demo
+>>> handler_id = logger.add(sys.stdout, format="{level} | {message}")
+
+>>> from logerr import Err
+>>> _ = Err("Database connection failed")  # doctest: +ELLIPSIS
+ERROR | Result error in ...Database connection failed
+
+>>> _ = logger.remove(handler_id)
+>>> logerr.reset_config()
+
+```
+
 ```python
 >>> from logerr import Option
 
@@ -176,133 +194,46 @@ df = from_mongo(db.users, {"status": "active"}, schema=schema).unwrap_or(pd.Data
 
 ## 💡 Examples
 
-### Database Connection with Retry Logic
+Here's a "full-stack" pipeline that combines retry logic, NoSQL loading, and
+schema validation - and gets observability into all three for free:
 
 ```python
-from logerr import Result, Ok, Err
-from logerr.recipes import retry  # pixi install -e retry (or pip install "logerr[retry]")
-from typing import Any
-
-@retry.on_err()  # retries on Err, default: 3 attempts with exponential backoff
-def connect_to_database(url: str) -> Result[Any, Exception]:
-    try:
-        return Ok(database.connect(url))
-    except ConnectionError as e:
-        return Err.from_exception(e)
-
-# Alternative: functional retry utility instead of the decorator
-def connect_with_fallback() -> Result[Any, Exception]:
-    return retry.with_retry(lambda: database.connect("primary-server.db")).or_else(
-        lambda _: retry.with_retry(lambda: database.connect("backup-server.db"))
-    )
-
-result = (
-    connect_to_database("primary-server.db")
-    .map(lambda conn: "Connected successfully!")
-    .unwrap_or("All connection attempts failed - check logs")
-)
-```
-
-### Configuration Loading Pipeline
-
-```python
-import json
-from logerr import Result, Ok
-from logerr.utilities import execute, validate, resolve
-
-def load_config(path: str) -> Result[dict, str]:
-    return (
-        execute(lambda: open(path).read())
-        .then(lambda text: execute(lambda: json.loads(text)))
-        .then(validate_config)
-        .map_err(lambda e: f"Config error in {path}: {e}")
-    )
-
-def validate_config(config: dict) -> Result[dict, str]:
-    required = ["database_url", "api_key"]
-    return (
-        validate(config, lambda cfg: all(k in cfg for k in required), error_factory=None)
-        .map_err(lambda _: f"Missing keys: {[k for k in required if k not in config]}")
-        .map(lambda _: config)
-    )
-
-# Functional pipeline with fallback configuration
-default_config = {"database_url": "sqlite:///default.db", "api_key": "demo-key"}
-
-config = (
-    load_config("app.json")
-    .or_else(lambda _: Ok(default_config))
-    .map(lambda cfg: resolve(cfg.get("database_url"), default=default_config["database_url"]))
-    .unwrap()
-)
-```
-
-### Safe Data Processing
-
-```python
-from logerr import Option
-from logerr.utilities import nullable, validate, attribute
-
-def process_user_data(data: dict) -> Option[str]:
-    return (
-        nullable(data.get("user"))
-        .then(lambda user: nullable(user.get("profile")))
-        .then(lambda profile: nullable(profile.get("name")))
-        .then(lambda name: validate(name, lambda n: len(n.strip()) > 0, error_factory=None, return_type="option"))
-        .map(str.title)
-        .map(lambda name: f"👋 {name}")
-    )
-
-def get_user_role(data: dict) -> Option[str]:
-    return (
-        nullable(data.get("user"))
-        .map(lambda user: attribute(user, "role", "member"))  # default to "member"
-        .filter(lambda role: role in ["admin", "member", "guest"])
-    )
-
-user_data = {"user": {"profile": {"name": "alice smith"}, "role": "admin"}}
-
-greeting = (
-    process_user_data(user_data)
-    .then(lambda name: get_user_role(user_data).map(lambda role: f"{name} (Role: {role})"))
-    .unwrap_or("👋 Anonymous User")
-)
-# greeting == "👋 Alice Smith (Role: admin)"
-```
-
-### NoSQL to DataFrame with Data Quality Logging
-
-```python
+import pandas as pd
+from logerr import Result, configure
+from logerr.recipes import retry
 from logerr.recipes.dataframes import Required, from_mongo
-from logerr import configure
 
-configure(level="INFO")  # data quality reports log at INFO
+configure(level="INFO")  # surface retry attempts and data quality issues as they happen
 
 # Required fields error if missing; other fields are optional by default
-schema = {
-    "user_id": Required[str],
-    "email": Required[str],
-    "name": str,
-    "age": int,
-}
+schema = {"user_id": Required[str], "email": Required[str], "age": int}
 
-result = from_mongo(
-    collection=db.users,
-    query={"status": "active", "last_login": {"$gte": last_month}},
-    schema=schema,
-    report_name="active_users",
-)
+@retry.on_err()  # retries on connection failure: 3 attempts, exponential backoff
+def load_active_users() -> Result:
+    return from_mongo(
+        db.users, {"status": "active"}, schema=schema, report_name="active_users"
+    )
 
-df = (
-    result
-    .map(lambda df: df[df["age"].notna()])  # drop rows missing age
-    .unwrap_or_else(lambda error: handle_data_error(error))
-)
-
-# Automatic logging output:
-# INFO    | Data Quality Summary for 'active_users': 1847/2000 records processed successfully (92.4%)
-# ERROR   | Missing required field 'email' in 153/2000 records - excluding from DataFrame
+df = load_active_users().unwrap_or_else(lambda error: pd.DataFrame())
 ```
+
+```
+# What you'd see in the logs (abbreviated - one ERROR line is logged per
+# missing occurrence, not aggregated):
+#
+# INFO    | load_active_users succeeded after 2 attempts
+# ERROR   | Missing required field 'email' in document
+# INFO    | Data Quality Summary for 'active_users': 1847/2000 records processed successfully (92.4% success rate)
+# WARNING | Field 'age': 43/2000 missing (2.2% missing rate)
+```
+
+No manual logging calls anywhere in that pipeline - the retry attempts,
+the missing-field errors, and the data quality summary are all captured
+automatically.
+
+See the [Examples guide](https://jesserobertson.github.io/logerr/guide/examples/)
+for more: web applications, file processing pipelines, configuration
+management, and circuit-breaker patterns.
 
 ## ⚙️ Configuration
 

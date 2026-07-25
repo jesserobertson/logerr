@@ -2,6 +2,89 @@
 
 This page contains real-world examples showing how to use `logerr` effectively in different scenarios.
 
+## Flagship Example: Retry + NoSQL Load + Schema Validation + Observability
+
+This is the example that best shows off what `logerr` is actually *for*. It's
+a small "full-stack" pipeline - pull active users out of MongoDB, retry on
+transient connection failures, validate the documents against a schema, and
+load the result into a `pandas` DataFrame - and it gets full observability
+into every one of those steps without a single manual logging call.
+
+Start with the schema. `Required[str]` marks a field as load-bearing: if it's
+missing from a document, that document is treated as a data quality problem
+worth logging. Fields without `Required` are still tracked (missing data is
+still logged), but they don't count as validation failures.
+
+```python
+from logerr.recipes.dataframes import Required, from_mongo
+
+# Required fields error if missing; other fields are optional by default
+schema = {"user_id": Required[str], "email": Required[str], "age": int}
+```
+
+Here, `user_id` and `email` are `Required` because downstream code can't do
+anything useful with a user record that's missing either - you can't join on
+a missing `user_id`, and you can't email a user with no `email`. `age` isn't
+`Required`: it's nice-to-have for analytics, but its absence shouldn't count
+as a data quality failure the way a missing `email` should.
+
+Next, wrap the Mongo call in `retry.on_err()`. Network calls to a database
+fail transiently all the time - a dropped connection, a momentary timeout -
+and those failures shouldn't kill the whole job. `retry.on_err()` retries the
+function automatically (3 attempts with exponential backoff, by default) any
+time it returns an `Err`, so a single flaky connection attempt doesn't
+propagate all the way up to your caller.
+
+```python
+import pandas as pd
+from logerr import Result, configure
+from logerr.recipes import retry
+
+configure(level="INFO")  # surface retry attempts and data quality issues as they happen
+
+@retry.on_err()  # retries on connection failure: 3 attempts, exponential backoff
+def load_active_users() -> Result:
+    return from_mongo(
+        db.users, {"status": "active"}, schema=schema, report_name="active_users"
+    )
+
+df = load_active_users().unwrap_or_else(lambda error: pd.DataFrame())
+```
+
+The `configure(level="INFO")` call is the whole point: it's the only line in
+this example that mentions logging at all, and it's what turns on visibility
+into everything above. Without it, this pipeline runs exactly the same way -
+retries still retry, validation still validates - but silently. With it, you
+get a live narrative of what happened, for free:
+
+```
+# What you'd see in the logs (abbreviated - one ERROR line is logged per
+# missing occurrence, not aggregated):
+#
+# INFO    | load_active_users succeeded after 2 attempts
+# ERROR   | Missing required field 'email' in document
+# INFO    | Data Quality Summary for 'active_users': 1847/2000 records processed successfully (92.4% success rate)
+# WARNING | Field 'age': 43/2000 missing (2.2% missing rate)
+```
+
+Reading this as an operator: the first line tells you the connection was
+flaky but self-healed - the first attempt failed, the second succeeded, and
+nobody had to be paged. The second line is `retry.on_err()`'s retry handling
+and `from_mongo`'s schema validation working together - a document came back
+missing `email`, so it's excluded from the DataFrame and logged (one `ERROR`
+line per occurrence, not a single aggregated count - if this ran against a
+larger, messier collection you'd see this line repeated once per bad
+document). The third line is the overall scorecard for the load: out of 2000
+documents, 1847 made it into the DataFrame cleanly. The fourth line is a
+softer signal - `age` isn't `Required`, so a 2.2% missing rate doesn't fail
+anything, but it's still worth knowing about, so it's logged at `WARNING`
+rather than `ERROR`.
+
+None of that required a single `logger.info(...)` or `logger.error(...)`
+call in the code above - it's a direct consequence of using `logerr`'s Result
+type, `retry.on_err()`, and `from_mongo()` together, with logging turned on
+via `configure()`.
+
 ## Web Application Example
 
 Here's how you might use `logerr` in a web application for robust error handling:
