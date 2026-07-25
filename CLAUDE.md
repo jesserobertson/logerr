@@ -355,17 +355,22 @@ def retry_operation(max_attempts: int | None = None) -> None:
 folding a *collection* of `Option`/`Result` values into one, with
 short-circuit-on-first-failure semantics: `sequence_option`/
 `sequence_result`, `traverse_option`/`traverse_result` (map then sequence,
-short-circuiting), and `partition_option`/`partition_result` (collect
-successes *and* failures, no short-circuit). `sequence`/`traverse`/
-`partition` also exist as `@overload`-typed polymorphic wrappers
-dispatching on runtime type (raising `ValueError` on empty input, since
-there's no element to dispatch on - use the `_option`/`_result` function
-directly in that case). `values()` names the existing free
+short-circuiting), `partition_option`/`partition_result` (collect
+successes *and* failures, no short-circuit), and `fold_option`/
+`fold_result` (thread an accumulator through a sequence of items via an
+Option/Result-returning step function, short-circuiting on the first
+failure - mirrors Rust's `Iterator::try_fold`; unlike `sequence`/
+`traverse`, each step's output feeds the next step's input, so it's
+explicitly sequential rather than order-independent). `sequence`/
+`traverse`/`partition`/`fold` also exist as `@overload`-typed polymorphic
+wrappers dispatching on runtime type (raising `ValueError` on empty input,
+since there's no element to dispatch on - use the `_option`/`_result`
+function directly in that case). `values()` names the existing free
 `itertools.chain.from_iterable` interop trick (flatten to just the
-present/Ok values). `Option.sequence`/`Option.traverse` and
-`Result.sequence`/`Result.traverse` classmethod factories delegate to the
-free functions, mirroring the existing `Option.from_nullable`/`Result.of`
-classmethod-factory pattern.
+present/Ok values). `Option.sequence`/`Option.traverse`/`Option.fold` and
+`Result.sequence`/`Result.traverse`/`Result.fold` classmethod factories
+delegate to the free functions, mirroring the existing
+`Option.from_nullable`/`Result.of` classmethod-factory pattern.
 
 ## API Structure
 

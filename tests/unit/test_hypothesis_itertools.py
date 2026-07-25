@@ -7,6 +7,7 @@ from hypothesis import strategies as st
 
 from logerr import Err, Nothing, Ok, Option, Result, Some
 from logerr.itertools import (
+    fold_result,
     partition,
     partition_option,
     partition_result,
@@ -156,3 +157,12 @@ class TestPolymorphicConsistency:
         assert traverse(xs, lambda x: Ok(x * 2)) == traverse_result(
             xs, lambda x: Ok(x * 2)
         )
+
+
+class TestFoldProperties:
+    """Property-based tests for fold_result."""
+
+    @given(st.lists(st.integers()))
+    def test_fold_result_as_sum_matches_sum(self, xs: list[int]):
+        """fold_result(xs, 0, lambda acc, x: Ok(acc + x)).unwrap() == sum(xs)."""
+        assert fold_result(xs, 0, lambda acc, x: Ok(acc + x)).unwrap() == sum(xs)

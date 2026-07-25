@@ -545,6 +545,29 @@ class Result[T, E](ABC):
 
         return traverse_result(items, func)
 
+    @classmethod
+    def fold[U](
+        cls, items: Iterable[U], initial: T, func: Callable[[T, U], Result[T, E]]
+    ) -> Result[T, E]:
+        """Thread an accumulator through items, short-circuiting on Err.
+
+        Args:
+            items: The values to fold over.
+            initial: The starting accumulator value.
+            func: Called as func(accumulator, item) -> Result[new_accumulator, E].
+
+        Returns:
+            Ok(final_accumulator) if every call returns Ok, otherwise the
+            first Err encountered.
+
+        Examples:
+            >>> Result.fold([1, 2, 3], 0, lambda acc, x: Ok(acc + x))
+            Ok(6)
+        """
+        from .itertools import fold_result
+
+        return fold_result(items, initial, func)
+
 
 class Ok[T, E](Result[T, E]):
     """Represents a successful result containing a value.

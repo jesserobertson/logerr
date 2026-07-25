@@ -465,3 +465,15 @@ class TestResultCollectionFactories:
         result = Result.traverse([1, 2, 3], lambda x: Err("boom") if x == 2 else Ok(x))
         assert result.is_err()
         assert result.unwrap_err() == "boom"
+
+    def test_fold_all_succeed(self):
+        result = Result.fold([1, 2, 3], 0, lambda acc, x: Ok(acc + x))
+        assert result.is_ok()
+        assert result.unwrap() == 6
+
+    def test_fold_short_circuits(self):
+        result = Result.fold(
+            [1, 2, 3], 0, lambda acc, x: Err("boom") if x == 2 else Ok(acc + x)
+        )
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"

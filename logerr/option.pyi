@@ -130,6 +130,13 @@ class Option[T](ABC):
         """Map func over items and sequence the results."""
         ...
 
+    @classmethod
+    def fold[U](
+        cls, items: Iterable[U], initial: T, func: Callable[[T, U], Option[T]]
+    ) -> Option[T]:
+        """Thread an accumulator through items, short-circuiting on Nothing."""
+        ...
+
 class Some[T](Option[T]):
     """Represents an option containing a value."""
 

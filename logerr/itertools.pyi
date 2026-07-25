@@ -36,6 +36,18 @@ def partition_result[T, E](items: Iterable[Result[T, E]]) -> tuple[list[T], list
     """Split an iterable of Results into Ok values and Err values."""
     ...
 
+def fold_option[T, U](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Option[T]]
+) -> Option[T]:
+    """Thread an accumulator through items, short-circuiting on Nothing."""
+    ...
+
+def fold_result[T, U, E](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Result[T, E]]
+) -> Result[T, E]:
+    """Thread an accumulator through items, short-circuiting on Err."""
+    ...
+
 @overload
 def values[T](items: Iterable[Option[T]]) -> Iterator[T]: ...
 @overload
@@ -56,3 +68,11 @@ def traverse[T, U, E](
 def partition[T](items: Iterable[Option[T]]) -> tuple[list[T], int]: ...
 @overload
 def partition[T, E](items: Iterable[Result[T, E]]) -> tuple[list[T], list[E]]: ...
+@overload
+def fold[T, U](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Option[T]]
+) -> Option[T]: ...
+@overload
+def fold[T, U, E](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Result[T, E]]
+) -> Result[T, E]: ...

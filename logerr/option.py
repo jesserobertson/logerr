@@ -556,6 +556,29 @@ class Option[T](ABC):
 
         return traverse_option(items, func)
 
+    @classmethod
+    def fold[U](
+        cls, items: Iterable[U], initial: T, func: Callable[[T, U], Option[T]]
+    ) -> Option[T]:
+        """Thread an accumulator through items, short-circuiting on Nothing.
+
+        Args:
+            items: The values to fold over.
+            initial: The starting accumulator value.
+            func: Called as func(accumulator, item) -> Option[new_accumulator].
+
+        Returns:
+            Some(final_accumulator) if every call returns Some, otherwise
+            Nothing from the first call that does.
+
+        Examples:
+            >>> Option.fold([1, 2, 3], 0, lambda acc, x: Some(acc + x))
+            Some(6)
+        """
+        from .itertools import fold_option
+
+        return fold_option(items, initial, func)
+
 
 class Some[T](Option[T]):
     """Represents an option containing a value.

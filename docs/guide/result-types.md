@@ -243,7 +243,7 @@ list(Err("boom"))                      # []
 list(zip(Ok(1), Ok("a")))              # [(1, "a")]
 ```
 
-### Collecting Results: `sequence()` and `traverse()`
+### Collecting Results: `sequence()`, `traverse()`, and `fold()`
 
 ```python
 from logerr import Result, Ok, Err
@@ -254,12 +254,15 @@ Result.sequence([Ok(1), Err("boom")])    # Err("boom")
 
 # traverse() - map a function returning Result over a list, then sequence
 Result.traverse([1, 2, 3], lambda x: Ok(x * 2))  # Ok([2, 4, 6])
+
+# fold() - thread an accumulator through a sequence, short-circuiting on Err
+Result.fold([1, 2, 3], 0, lambda acc, x: Ok(acc + x))  # Ok(6)
 ```
 
 Free functions with the same behavior are also available from
-`logerr.itertools` (`sequence_result`, `traverse_result`), along with
-`partition_result()` (collects every Ok value *and* every Err value,
-without short-circuiting) and `values()` (a named wrapper around the
+`logerr.itertools` (`sequence_result`, `traverse_result`, `fold_result`),
+along with `partition_result()` (collects every Ok value *and* every Err
+value, without short-circuiting) and `values()` (a named wrapper around the
 `itertools.chain.from_iterable` trick below):
 
 ```python

@@ -82,13 +82,16 @@ a 1.0 stability commitment is made.
   failure), `traverse_option`/`traverse_result` (map then sequence, never
   calling the function past the first failure), `partition_option`/
   `partition_result` (split into successes/failures without
-  short-circuiting), and `values` (a named wrapper for the
+  short-circuiting), `fold_option`/`fold_result` (thread an accumulator
+  through a sequence via an Option/Result-returning step function,
+  short-circuiting on the first failure - mirrors Rust's
+  `Iterator::try_fold`), and `values` (a named wrapper for the
   `itertools.chain.from_iterable` "flatten to just the present/Ok values"
-  trick). `sequence`/`traverse`/`partition` also have `@overload`-typed
-  polymorphic wrappers that dispatch on runtime type, raising `ValueError`
-  on empty input (ambiguous - use the `_option`/`_result` function
-  directly instead). `Option`/`Result` gained matching `sequence()`/
-  `traverse()` classmethod factories.
+  trick). `sequence`/`traverse`/`partition`/`fold` also have
+  `@overload`-typed polymorphic wrappers that dispatch on runtime type,
+  raising `ValueError` on empty input (ambiguous - use the `_option`/
+  `_result` function directly instead). `Option`/`Result` gained matching
+  `sequence()`/`traverse()`/`fold()` classmethod factories.
 - `CHANGELOG.md` (this file).
 - `Some`/`Nothing`/`Ok`/`Err` gained `__len__` (`1` for `Some`/`Ok`, `0` for
   `Nothing`/`Err`, mirroring `__iter__`'s existing "0 or 1 elements"

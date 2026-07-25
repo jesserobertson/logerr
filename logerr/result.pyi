@@ -120,6 +120,13 @@ class Result[T, E](ABC):
         """Map func over items and sequence the results."""
         ...
 
+    @classmethod
+    def fold[U](
+        cls, items: Iterable[U], initial: T, func: Callable[[T, U], Result[T, E]]
+    ) -> Result[T, E]:
+        """Thread an accumulator through items, short-circuiting on Err."""
+        ...
+
 class Ok[T, E](Result[T, E]):
     """Represents a successful result containing a value."""
 

@@ -614,3 +614,14 @@ class TestOptionCollectionFactories:
             [1, 2, 3], lambda x: Nothing.empty() if x == 2 else Some(x)
         )
         assert result.is_nothing()
+
+    def test_fold_all_succeed(self):
+        result = Option.fold([1, 2, 3], 0, lambda acc, x: Some(acc + x))
+        assert result.is_some()
+        assert result.unwrap() == 6
+
+    def test_fold_short_circuits(self):
+        result = Option.fold(
+            [1, 2, 3], 0, lambda acc, x: Nothing.empty() if x == 2 else Some(acc + x)
+        )
+        assert result.is_nothing()

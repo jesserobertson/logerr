@@ -258,7 +258,7 @@ list(Nothing.empty())                  # []
 list(zip(Some(1), Some("a")))          # [(1, "a")]
 ```
 
-### Collecting Options: `sequence()` and `traverse()`
+### Collecting Options: `sequence()`, `traverse()`, and `fold()`
 
 ```python
 from logerr import Option, Some, Nothing
@@ -269,13 +269,16 @@ Option.sequence([Some(1), Nothing.empty()])    # Nothing
 
 # traverse() - map a function returning Option over a list, then sequence
 Option.traverse([1, 2, 3], lambda x: Some(x * 2))  # Some([2, 4, 6])
+
+# fold() - thread an accumulator through a sequence, short-circuiting on Nothing
+Option.fold([1, 2, 3], 0, lambda acc, x: Some(acc + x))  # Some(6)
 ```
 
 Free functions with the same behavior are also available from
-`logerr.itertools` (`sequence_option`, `traverse_option`), along with
-`partition_option()` (collects every present value *and* a count of how
-many were `Nothing`, without short-circuiting) and `values()` (a named
-wrapper around the `itertools.chain.from_iterable` trick below):
+`logerr.itertools` (`sequence_option`, `traverse_option`, `fold_option`),
+along with `partition_option()` (collects every present value *and* a
+count of how many were `Nothing`, without short-circuiting) and `values()`
+(a named wrapper around the `itertools.chain.from_iterable` trick below):
 
 ```python
 from logerr.itertools import partition_option, sequence_option, values

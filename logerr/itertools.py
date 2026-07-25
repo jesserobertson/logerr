@@ -177,6 +177,78 @@ def partition_result[T, E](items: Iterable[Result[T, E]]) -> tuple[list[T], list
     return oks, errs
 
 
+def fold_option[T, U](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Option[T]]
+) -> Option[T]:
+    """Thread an accumulator through items, short-circuiting on Nothing.
+
+    Mirrors Rust's Iterator::try_fold. Unlike sequence_option/traverse_option
+    (which treat items independently), each call to func receives the
+    accumulator produced by the previous call - this is explicitly
+    sequential, not parallelizable.
+
+    Args:
+        items: The values to fold over.
+        initial: The starting accumulator value.
+        func: Called as func(accumulator, item) -> Option[new_accumulator].
+
+    Returns:
+        Some(final_accumulator) if every call returns Some, otherwise
+        Nothing from the first call that does.
+
+    Examples:
+        >>> from logerr import Some
+        >>> fold_option([1, 2, 3], 0, lambda acc, x: Some(acc + x))
+        Some(6)
+        >>> from logerr import Nothing
+        >>> fold_option([1, 2, 3], 0, lambda acc, x: Nothing.empty() if x == 2 else Some(acc + x))  # doctest: +ELLIPSIS
+        Nothing(...)
+    """
+    acc = initial
+    for item in items:
+        result = func(acc, item)
+        if result.is_nothing():
+            return Nothing.empty()
+        acc = result.unwrap()
+    return Some(acc)
+
+
+def fold_result[T, U, E](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Result[T, E]]
+) -> Result[T, E]:
+    """Thread an accumulator through items, short-circuiting on Err.
+
+    Mirrors Rust's Iterator::try_fold. Unlike sequence_result/traverse_result
+    (which treat items independently), each call to func receives the
+    accumulator produced by the previous call - this is explicitly
+    sequential, not parallelizable.
+
+    Args:
+        items: The values to fold over.
+        initial: The starting accumulator value.
+        func: Called as func(accumulator, item) -> Result[new_accumulator, E].
+
+    Returns:
+        Ok(final_accumulator) if every call returns Ok, otherwise the
+        first Err encountered.
+
+    Examples:
+        >>> from logerr import Ok
+        >>> fold_result([1, 2, 3], 0, lambda acc, x: Ok(acc + x))
+        Ok(6)
+        >>> from logerr import Err
+        >>> fold_result([1, 2, 3], 0, lambda acc, x: Err("boom") if x == 2 else Ok(acc + x))  # doctest: +ELLIPSIS
+        Err(...)
+    """
+    acc = initial
+    for item in items:
+        result = func(acc, item)
+        if result.is_err():
+            return Err(result.unwrap_err(), _skip_logging=True)
+        acc = result.unwrap()
+    return Ok(acc)
+
+
 @overload
 def values[T](items: Iterable[Option[T]]) -> Iterator[T]: ...
 @overload
@@ -343,3 +415,61 @@ def partition(items: Iterable[Any]) -> tuple[list[Any], Any]:
     if isinstance(first, Ok | Err):
         return partition_result(materialized)
     raise TypeError(f"partition() expects Option or Result items, got {type(first)!r}")
+
+
+@overload
+def fold[T, U](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Option[T]]
+) -> Option[T]: ...
+@overload
+def fold[T, U, E](
+    items: Iterable[U], initial: T, func: Callable[[T, U], Result[T, E]]
+) -> Result[T, E]: ...
+def fold(items: Iterable[Any], initial: Any, func: Callable[[Any, Any], Any]) -> Any:
+    """Thread an accumulator through items via func, dispatching on func's return type.
+
+    Dispatches on the type of func's first return value (func is called
+    once on the first item to determine Option vs Result, then the
+    remaining items are processed by delegating to fold_option/fold_result
+    - func is never called twice on the first item).
+
+    Args:
+        items: The values to fold over.
+        initial: The starting accumulator value.
+        func: Called as func(accumulator, item) -> Option[T] or Result[T, E].
+
+    Returns:
+        The final accumulator wrapped in Some/Ok, or the first
+        Nothing/Err encountered.
+
+    Raises:
+        ValueError: If `items` is empty.
+        TypeError: If `func`'s return value is neither an Option nor a
+            Result.
+
+    Examples:
+        >>> from logerr import Some
+        >>> fold([1, 2, 3], 0, lambda acc, x: Some(acc + x))
+        Some(6)
+    """
+    it = iter(items)
+    try:
+        first_item = next(it)
+    except StopIteration:
+        raise ValueError(
+            "fold() cannot infer Option vs Result from an empty "
+            "iterable; use fold_option([], initial, func) or "
+            "fold_result([], initial, func) directly"
+        ) from None
+    first_result = func(initial, first_item)
+    if isinstance(first_result, Some | Nothing):
+        if first_result.is_nothing():
+            return Nothing.empty()
+        return fold_option(it, first_result.unwrap(), func)
+    if isinstance(first_result, Ok | Err):
+        if first_result.is_err():
+            return Err(first_result.unwrap_err(), _skip_logging=True)
+        return fold_result(it, first_result.unwrap(), func)
+    raise TypeError(
+        f"fold() expects func to return Option or Result, got {type(first_result)!r}"
+    )

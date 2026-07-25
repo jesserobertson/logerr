@@ -6,6 +6,9 @@ import pytest
 
 from logerr import Err, Nothing, Ok, Some
 from logerr.itertools import (
+    fold,
+    fold_option,
+    fold_result,
     partition,
     partition_option,
     partition_result,
@@ -247,3 +250,103 @@ class TestPartitionPolymorphic:
     def test_wrong_type_raises(self):
         with pytest.raises(TypeError, match="Option or Result"):
             partition([1, 2, 3])
+
+
+class TestFoldOption:
+    def test_all_succeed(self):
+        result = fold_option([1, 2, 3], 0, lambda acc, x: Some(acc + x))
+        assert result.is_some()
+        assert result.unwrap() == 6
+
+    def test_short_circuits_on_first_nothing(self):
+        result = fold_option(
+            [1, 2, 3], 0, lambda acc, x: Nothing.empty() if x == 2 else Some(acc + x)
+        )
+        assert result.is_nothing()
+
+    def test_empty_returns_initial_unchanged(self):
+        result = fold_option([], 42, lambda acc, x: Some(acc + x))
+        assert result.is_some()
+        assert result.unwrap() == 42
+
+    def test_func_not_called_past_first_failure(self):
+        calls = []
+
+        def func(acc, x):
+            calls.append(x)
+            return Nothing.empty() if x == 2 else Some(acc + x)
+
+        fold_option([1, 2, 3, 4], 0, func)
+        assert calls == [1, 2]
+
+
+class TestFoldResult:
+    def test_all_succeed(self):
+        result = fold_result([1, 2, 3], 0, lambda acc, x: Ok(acc + x))
+        assert result.is_ok()
+        assert result.unwrap() == 6
+
+    def test_short_circuits_on_first_err(self):
+        result = fold_result(
+            [1, 2, 3], 0, lambda acc, x: Err("boom") if x == 2 else Ok(acc + x)
+        )
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_empty_returns_initial_unchanged(self):
+        result = fold_result([], 42, lambda acc, x: Ok(acc + x))
+        assert result.is_ok()
+        assert result.unwrap() == 42
+
+    def test_func_not_called_past_first_failure(self):
+        calls = []
+
+        def func(acc, x):
+            calls.append(x)
+            return Err("boom") if x == 2 else Ok(acc + x)
+
+        fold_result([1, 2, 3, 4], 0, func)
+        assert calls == [1, 2]
+
+
+class TestFoldPolymorphic:
+    def test_dispatches_to_option(self):
+        result = fold([1, 2, 3], 0, lambda acc, x: Some(acc + x))
+        assert result.is_some()
+        assert result.unwrap() == 6
+
+    def test_dispatches_to_result(self):
+        result = fold([1, 2, 3], 0, lambda acc, x: Ok(acc + x))
+        assert result.is_ok()
+        assert result.unwrap() == 6
+
+    def test_short_circuits_option(self):
+        result = fold(
+            [1, 2, 3], 0, lambda acc, x: Nothing.empty() if x == 2 else Some(acc + x)
+        )
+        assert result.is_nothing()
+
+    def test_short_circuits_result(self):
+        result = fold(
+            [1, 2, 3], 0, lambda acc, x: Err("boom") if x == 2 else Ok(acc + x)
+        )
+        assert result.is_err()
+        assert result.unwrap_err() == "boom"
+
+    def test_func_called_once_per_item(self):
+        calls = []
+
+        def func(acc, x):
+            calls.append(x)
+            return Some(acc + x)
+
+        fold([1, 2, 3], 0, func)
+        assert calls == [1, 2, 3]
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            fold([], 0, lambda acc, x: Some(acc + x))
+
+    def test_wrong_return_type_raises(self):
+        with pytest.raises(TypeError, match="Option or Result"):
+            fold([1, 2, 3], 0, lambda acc, x: acc + x)
