@@ -92,23 +92,24 @@ def search[T](tree: Option[Node[T]], value: T) -> Option[T]:
 
 Building a tree from a list of values is a *fold*, not a `traverse`: each
 insertion depends on the tree built by the previous one, whereas
-`traverse` assumes each item maps independently. So this uses a plain loop
-with `match`/`case`, short-circuiting manually on the first `Err`:
+`traverse` assumes each item maps independently. `Result.fold` (added
+above) is built for exactly this - it threads an accumulator through a
+sequence of steps, short-circuiting on the first `Err`, so `build_tree`
+is now a one-liner:
 
 ```python
 def build_tree[T](values: list[T]) -> Result[Option[Node[T]], str]:
-    tree: Option[Node[T]] = Nothing.empty()
-    for v in values:
-        match insert(tree, v):
-            case Ok(new_node):
-                tree = Some(new_node)
-            case Err() as e:
-                return e
-    return Ok(tree)
+    return Result.fold(values, Nothing.empty(), lambda tree, v: insert(tree, v).map(Some))
 
 build_tree([5, 3, 8, 1, 4])   # Ok(Some(Node(value=5, ...)))
 build_tree([5, 3, 5])         # Err('Duplicate key: 5')
 ```
+
+The `.map(Some)` matters: `insert` returns `Result[Node[T], str]` (the
+new node, unwrapped), but the fold's accumulator type is
+`Option[Node[T]]` (the tree, which starts empty) - `.map(Some)` lifts
+`insert`'s result into the accumulator's shape before `Result.fold`
+feeds it into the next step.
 
 ## Adding Balance: a Red-Black Tree
 
@@ -203,6 +204,17 @@ def rb_insert[T](tree: Option[RBNode[T]], value: T) -> Result[Option[RBNode[T]],
 Same recursive shape as the plain BST's `insert` - `Nothing`/`Some` for
 absent/present children, `Result`/`.map()` for duplicate-key
 short-circuiting - with `_balance`'s four `match`/`case` arms doing the
-rebalancing work that `insert` alone doesn't need. Building a tree from a
-list works the same way as `build_tree` above, just calling `rb_insert`
-instead of `insert`.
+rebalancing work that `insert` alone doesn't need.
+
+Building a tree from a list is the same fold as the plain BST's
+`build_tree` - and since `rb_insert`'s signature already matches
+`Result.fold`'s expected shape exactly (`Result[Option[RBNode[T]], str]`,
+no `Node`-vs-`Option[Node]` mismatch to bridge), it needs no `.map(Some)`
+wrapper at all:
+
+```python
+def rb_build_tree[T](values: list[T]) -> Result[Option[RBNode[T]], str]:
+    return Result.fold(values, Nothing.empty(), rb_insert)
+
+rb_build_tree([5, 3, 8, 1, 4, 7, 9, 2, 6, 0])   # Ok(Some(RBNode(...)))
+```
