@@ -2,8 +2,8 @@
 
 **Rust-like Option and Result types for Python with automatic logging**
 
-[![Tests](https://img.shields.io/badge/tests-566%20passed-green)](https://github.com/jesserobertson/logerr)
-[![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen)](https://github.com/jesserobertson/logerr)
+[![Tests](https://img.shields.io/badge/tests-807%20passed-green)](https://github.com/jesserobertson/logerr)
+[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)](https://github.com/jesserobertson/logerr)
 [![Type Checked](https://img.shields.io/badge/mypy-passing-blue)](https://github.com/jesserobertson/logerr)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://github.com/jesserobertson/logerr)
 

@@ -8,6 +8,11 @@ a 1.0 stability commitment is made.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-25
+
+First published release - everything below was previously unreleased
+development on top of the never-published 0.1.0 baseline.
+
 ### Breaking Changes
 
 - `pipe()` now returns `Result[Any, Exception]` instead of the raw final

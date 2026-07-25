@@ -1,6 +1,6 @@
 [workspace]
 name = "logerr"
-version = "0.1.0"
+version = "0.2.0"
 description = "Rust-like Option and Result types with automatic logging integration"
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]

@@ -5,7 +5,7 @@ A library that provides Option and Result types similar to Rust, with automatic
 logging of errors using loguru, and configuration management via confection.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Re-export main types
 # Import modules for namespaced factory functions
