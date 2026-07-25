@@ -119,9 +119,13 @@ Okasaki's purely-functional insertion algorithm (*Purely Functional Data
 Structures*, 1999) is the standard reference for this without mutation or
 parent pointers - just four pattern-matched rebalancing cases and a
 fallback. It translates almost directly into `logerr`'s style, since
-Python's `match`/`case` can destructure nested `Some(RBNode(...))`
-patterns the same way Okasaki's ML/Haskell original destructures its
-`Tree` constructor:
+Python's `match`/`case` can destructure nested `Some(Tree(...))` patterns
+the same way Okasaki's ML/Haskell original destructures its own `Tree`
+constructor - right down to reusing the name `Tree`.
+
+This section's `insert`/`build_tree` supersede the plain BST's versions
+above, adding balancing to the same interface - once you've read this
+section, "the" `insert`/`build_tree` for this page are these ones.
 
 ```python
 from dataclasses import dataclass
@@ -133,88 +137,95 @@ class Color(Enum):
     BLACK = auto()
 
 @dataclass
-class RBNode[T]:
+class Tree[T]:
     color: Color
-    left: "Option[RBNode[T]]"
+    left: "Option[Tree[T]]"
     value: T
-    right: "Option[RBNode[T]]"
+    right: "Option[Tree[T]]"
 
-def _balance[T](
-    color: Color,
-    left: Option[RBNode[T]],
-    value: T,
-    right: Option[RBNode[T]],
-) -> RBNode[T]:
-    """The four Okasaki rebalancing cases, plus a fallback."""
+def balance[T](
+    color: Color, left: Option[Tree[T]], value: T, right: Option[Tree[T]]
+) -> Tree[T]:
+    """The four Okasaki rebalancing cases, plus a fallback.
+
+    Whichever of the four shapes below matches, the fix is identical:
+    pull the red grandchild up to become the new root, and recolor its
+    two children black. far_left/mid_left/mid_right/far_right are the
+    four subtrees and left_value/middle_value/right_value the three
+    values - in every case, already in left-to-right sorted order by the
+    time they're bound here, which is exactly what makes one shared
+    output work for all four inputs.
+    """
     match (color, left, value, right):
         case (
             Color.BLACK,
-            Some(RBNode(Color.RED, Some(RBNode(Color.RED, a, x, b)), y, c)),
-            z,
-            d,
-        ):
-            return RBNode(Color.RED, Some(RBNode(Color.BLACK, a, x, b)), y, Some(RBNode(Color.BLACK, c, z, d)))
-        case (
+            Some(Tree(Color.RED, Some(Tree(Color.RED, far_left, left_value, mid_left)), middle_value, mid_right)),
+            right_value,
+            far_right,
+        ) | (
             Color.BLACK,
-            Some(RBNode(Color.RED, a, x, Some(RBNode(Color.RED, b, y, c)))),
-            z,
-            d,
-        ):
-            return RBNode(Color.RED, Some(RBNode(Color.BLACK, a, x, b)), y, Some(RBNode(Color.BLACK, c, z, d)))
-        case (
+            Some(Tree(Color.RED, far_left, left_value, Some(Tree(Color.RED, mid_left, middle_value, mid_right)))),
+            right_value,
+            far_right,
+        ) | (
             Color.BLACK,
-            a,
-            x,
-            Some(RBNode(Color.RED, Some(RBNode(Color.RED, b, y, c)), z, d)),
-        ):
-            return RBNode(Color.RED, Some(RBNode(Color.BLACK, a, x, b)), y, Some(RBNode(Color.BLACK, c, z, d)))
-        case (
+            far_left,
+            left_value,
+            Some(Tree(Color.RED, Some(Tree(Color.RED, mid_left, middle_value, mid_right)), right_value, far_right)),
+        ) | (
             Color.BLACK,
-            a,
-            x,
-            Some(RBNode(Color.RED, b, y, Some(RBNode(Color.RED, c, z, d)))),
+            far_left,
+            left_value,
+            Some(Tree(Color.RED, mid_left, middle_value, Some(Tree(Color.RED, mid_right, right_value, far_right)))),
         ):
-            return RBNode(Color.RED, Some(RBNode(Color.BLACK, a, x, b)), y, Some(RBNode(Color.BLACK, c, z, d)))
+            return Tree(
+                Color.RED,
+                Some(Tree(Color.BLACK, far_left, left_value, mid_left)),
+                middle_value,
+                Some(Tree(Color.BLACK, mid_right, right_value, far_right)),
+            )
         case _:
-            return RBNode(color, left, value, right)
+            return Tree(color, left, value, right)
 
-def _ins[T](node: Option[RBNode[T]], value: T) -> Result[RBNode[T], str]:
+def _ins[T](node: Option[Tree[T]], value: T) -> Result[Tree[T], str]:
     match node:
         case Nothing():
-            return Ok(RBNode(Color.RED, Nothing.empty(), value, Nothing.empty()))
+            return Ok(Tree(Color.RED, Nothing.empty(), value, Nothing.empty()))
         case Some(n) if value == n.value:
             return Err(f"Duplicate key: {value}")
         case Some(n) if value < n.value:
             return _ins(n.left, value).map(
-                lambda new_left: _balance(n.color, Some(new_left), n.value, n.right)
+                lambda new_left: balance(n.color, Some(new_left), n.value, n.right)
             )
         case Some(n):
             return _ins(n.right, value).map(
-                lambda new_right: _balance(n.color, n.left, n.value, Some(new_right))
+                lambda new_right: balance(n.color, n.left, n.value, Some(new_right))
             )
 
-def rb_insert[T](tree: Option[RBNode[T]], value: T) -> Result[Option[RBNode[T]], str]:
+def insert[T](tree: Option[Tree[T]], value: T) -> Result[Option[Tree[T]], str]:
     """Insert into a red-black tree, keeping the same Result-based
-    duplicate-key contract as the plain BST above."""
+    duplicate-key contract as the plain BST's insert above."""
     return _ins(tree, value).map(
-        lambda n: Some(RBNode(Color.BLACK, n.left, n.value, n.right))
+        lambda n: Some(Tree(Color.BLACK, n.left, n.value, n.right))
     )
 ```
 
 Same recursive shape as the plain BST's `insert` - `Nothing`/`Some` for
 absent/present children, `Result`/`.map()` for duplicate-key
-short-circuiting - with `_balance`'s four `match`/`case` arms doing the
-rebalancing work that `insert` alone doesn't need.
+short-circuiting - with `balance`'s four combined `match`/`case`
+alternatives doing the rebalancing work that plain insertion doesn't
+need. (The plain BST's `search` from the previous section still works
+here unmodified - it only ever reads `.value`/`.left`/`.right`, never
+`.color`, so it doesn't care which kind of tree it's searching.)
 
-Building a tree from a list is the same fold as the plain BST's
-`build_tree` - and since `rb_insert`'s signature already matches
-`Result.fold`'s expected shape exactly (`Result[Option[RBNode[T]], str]`,
-no `Node`-vs-`Option[Node]` mismatch to bridge), it needs no `.map(Some)`
-wrapper at all:
+Building a tree from a list is still the same fold as before - and this
+`insert` already returns `Result[Option[Tree[T]], str]` directly (unlike
+the plain BST's `insert`, which returns the bare node), so this `build_tree`
+needs no `.map(Some)` wrapper:
 
 ```python
-def rb_build_tree[T](values: list[T]) -> Result[Option[RBNode[T]], str]:
-    return Result.fold(values, Nothing.empty(), rb_insert)
+def build_tree[T](values: list[T]) -> Result[Option[Tree[T]], str]:
+    return Result.fold(values, Nothing.empty(), insert)
 
-rb_build_tree([5, 3, 8, 1, 4, 7, 9, 2, 6, 0])   # Ok(Some(RBNode(...)))
+build_tree([5, 3, 8, 1, 4, 7, 9, 2, 6, 0])   # Ok(Some(Tree(...)))
 ```
