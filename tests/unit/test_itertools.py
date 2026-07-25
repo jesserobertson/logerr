@@ -223,6 +223,36 @@ class TestTraversePolymorphic:
         traverse([1, 2, 3], func)
         assert calls == [1, 2, 3]
 
+    def test_func_called_once_per_item_result(self):
+        calls = []
+
+        def func(x):
+            calls.append(x)
+            return Ok(x)
+
+        traverse([1, 2, 3], func)
+        assert calls == [1, 2, 3]
+
+    def test_short_circuits_stops_calling_func_option(self):
+        calls = []
+
+        def func(x):
+            calls.append(x)
+            return Nothing.empty() if x == 2 else Some(x)
+
+        traverse([1, 2, 3, 4], func)
+        assert calls == [1, 2]
+
+    def test_short_circuits_stops_calling_func_result(self):
+        calls = []
+
+        def func(x):
+            calls.append(x)
+            return Err("boom") if x == 2 else Ok(x)
+
+        traverse([1, 2, 3, 4], func)
+        assert calls == [1, 2]
+
     def test_empty_raises(self):
         with pytest.raises(ValueError, match="empty"):
             traverse([], lambda x: Some(x))
@@ -342,6 +372,17 @@ class TestFoldPolymorphic:
 
         fold([1, 2, 3], 0, func)
         assert calls == [1, 2, 3]
+
+    def test_accumulator_threads_correctly(self):
+        calls = []
+
+        def func(acc, x):
+            calls.append((acc, x))
+            return Some(acc + x)
+
+        result = fold([1, 2, 3], 0, func)
+        assert result.unwrap() == 6
+        assert calls == [(0, 1), (1, 2), (3, 3)]
 
     def test_empty_raises(self):
         with pytest.raises(ValueError, match="empty"):
