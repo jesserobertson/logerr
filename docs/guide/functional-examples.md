@@ -159,24 +159,80 @@ def balance[T](
     match (color, left, value, right):
         case (
             Color.BLACK,
-            Some(Tree(Color.RED, Some(Tree(Color.RED, far_left, left_value, mid_left)), middle_value, mid_right)),
+            Some(
+                Tree(
+                    Color.RED,
+                    Some(
+                        Tree(
+                            Color.RED,
+                            far_left,
+                            left_value,
+                            mid_left,
+                        )
+                    ),
+                    middle_value,
+                    mid_right,
+                )
+            ),
             right_value,
             far_right,
         ) | (
             Color.BLACK,
-            Some(Tree(Color.RED, far_left, left_value, Some(Tree(Color.RED, mid_left, middle_value, mid_right)))),
+            Some(
+                Tree(
+                    Color.RED,
+                    far_left,
+                    left_value,
+                    Some(
+                        Tree(
+                            Color.RED,
+                            mid_left,
+                            middle_value,
+                            mid_right,
+                        )
+                    ),
+                )
+            ),
             right_value,
             far_right,
         ) | (
             Color.BLACK,
             far_left,
             left_value,
-            Some(Tree(Color.RED, Some(Tree(Color.RED, mid_left, middle_value, mid_right)), right_value, far_right)),
+            Some(
+                Tree(
+                    Color.RED,
+                    Some(
+                        Tree(
+                            Color.RED,
+                            mid_left,
+                            middle_value,
+                            mid_right,
+                        )
+                    ),
+                    right_value,
+                    far_right,
+                )
+            ),
         ) | (
             Color.BLACK,
             far_left,
             left_value,
-            Some(Tree(Color.RED, mid_left, middle_value, Some(Tree(Color.RED, mid_right, right_value, far_right)))),
+            Some(
+                Tree(
+                    Color.RED,
+                    mid_left,
+                    middle_value,
+                    Some(
+                        Tree(
+                            Color.RED,
+                            mid_right,
+                            right_value,
+                            far_right,
+                        )
+                    ),
+                )
+            ),
         ):
             return Tree(
                 Color.RED,
