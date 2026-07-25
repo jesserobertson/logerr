@@ -23,9 +23,8 @@ def quicksort[T](items: list[T]) -> list[T]:
 ```
 
 A more realistic version validates its input first - `Result.traverse`
-(from Task 6 of this plan) checks every element and short-circuits on the
-first one that fails, then `.map()` chains the pure sort onto the
-validated list:
+checks every element and short-circuits on the first one that fails,
+then `.map()` chains the pure sort onto the validated list:
 
 ```python
 from logerr import Ok, Err, Result

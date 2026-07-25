@@ -138,6 +138,7 @@ class TestRetryDecorators:
 
         result = always_failing_operation()
         assert result.is_err()
+        assert result.unwrap_err() == "always fails"
         assert call_count == 2
 
     def test_on_err_type_decorator_retries_specific_errors(self):
@@ -290,6 +291,9 @@ class TestRetryDecorators:
 
         result = always_failing_type_logged()
         assert result.is_err()
+        error = result.unwrap_err()
+        assert isinstance(error, ValueError)
+        assert str(error) == "always fails"
         assert call_count == 2
 
     def test_on_err_type_decorator_with_multiple_exception_types(self):
@@ -384,6 +388,7 @@ class TestRetryDecorators:
 
         result = always_failing_with_logging()
         assert result.is_err()
+        assert result.unwrap_err() == "always fails"
         assert call_count == 2
 
     def test_decorator_preserves_original_function_behavior(self):
@@ -555,6 +560,7 @@ class TestRetryUtilities:
             log_attempts=False,
         )
         assert result.is_err()
+        assert result.unwrap_err() == "always fails"
         assert call_count == 3
 
     def test_until_ok_eventual_success_with_logging(self):
@@ -618,6 +624,7 @@ class TestRetryUtilities:
             log_attempts=True,
         )
         assert result.is_err()
+        assert result.unwrap_err() == "always fails"
         assert call_count == 2
 
 
@@ -737,6 +744,7 @@ class TestRetryIfErr:
         )
 
         assert final_result.is_err()
+        assert final_result.unwrap_err() == "still failing"
         assert call_count == 2
 
     def test_result_class_has_no_retry_method(self):

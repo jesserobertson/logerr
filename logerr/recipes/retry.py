@@ -103,9 +103,17 @@ def on_err(
                 if log_attempts:
                     logger.warning(f"{func_name} failed after {attempt_count} attempts")
 
-                return last_result or Err.from_value("All retry attempts failed")  # type: ignore
+                return (
+                    last_result
+                    if last_result is not None
+                    else Err.from_value("All retry attempts failed")
+                )  # type: ignore
 
-            return last_result or Err.from_value("Unknown retry error")  # type: ignore
+            return (
+                last_result
+                if last_result is not None
+                else Err.from_value("Unknown retry error")
+            )  # type: ignore
 
         return wrapper
 
@@ -192,9 +200,17 @@ def on_err_type(
                 if log_attempts:
                     logger.warning(f"{func_name} failed after {attempt_count} attempts")
 
-                return last_result or Err.from_value("All retry attempts failed")  # type: ignore
+                return (
+                    last_result
+                    if last_result is not None
+                    else Err.from_value("All retry attempts failed")
+                )  # type: ignore
 
-            return last_result or Err.from_value("Unknown retry error")  # type: ignore
+            return (
+                last_result
+                if last_result is not None
+                else Err.from_value("Unknown retry error")
+            )  # type: ignore
 
         return wrapper
 
@@ -348,9 +364,17 @@ def until_ok[T, E](
             func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
             logger.warning(f"{func_name} failed after {attempt_count} attempts")
 
-        return last_result or Err.from_value("All retry attempts failed")  # type: ignore
+        return (
+            last_result
+            if last_result is not None
+            else Err.from_value("All retry attempts failed")
+        )  # type: ignore
 
-    return last_result or Err.from_value("Unknown retry error")  # type: ignore
+    return (
+        last_result
+        if last_result is not None
+        else Err.from_value("Unknown retry error")
+    )  # type: ignore
 
 
 # Convenience functions for common retry patterns
