@@ -16,6 +16,7 @@ from logerr.utilities import (
     resolve,
     try_chain,
     validate,
+    wrap_option,
     wrap_result,
 )
 
@@ -444,4 +445,82 @@ class TestWrapResult:
 
         result = add(1, 2, c=3)
         assert result.is_ok()
+        assert result.unwrap() == 6
+
+
+class TestWrapOption:
+    """Test the wrap_option decorator."""
+
+    def test_wrap_option_raw_value_becomes_some(self):
+        """A plain non-None return value is wrapped as Some."""
+
+        @wrap_option
+        def f():
+            return 42
+
+        result = f()
+        assert result.is_some()
+        assert result.unwrap() == 42
+
+    def test_wrap_option_none_becomes_nothing(self):
+        """A plain None return value becomes Nothing."""
+
+        @wrap_option
+        def f():
+            return None
+
+        result = f()
+        assert result.is_nothing()
+
+    def test_wrap_option_passes_through_some(self):
+        """A returned Some is passed through unchanged, not re-wrapped."""
+
+        @wrap_option
+        def f():
+            return Some(42)
+
+        result = f()
+        assert result.is_some()
+        assert result.unwrap() == 42
+
+    def test_wrap_option_passes_through_nothing(self):
+        """A returned Nothing is passed through unchanged."""
+        inner_nothing = Nothing.from_none("no value")
+
+        @wrap_option
+        def f():
+            return inner_nothing
+
+        result = f()
+        assert result.is_nothing()
+        assert result is inner_nothing
+
+    def test_wrap_option_exception_becomes_nothing(self):
+        """A raised exception is caught and converted to Nothing."""
+
+        @wrap_option
+        def f():
+            raise ValueError("bad input")
+
+        result = f()
+        assert result.is_nothing()
+
+    def test_wrap_option_preserves_function_name(self):
+        """functools.wraps preserves __name__, matching wrap_result's convention."""
+
+        @wrap_option
+        def my_named_function():
+            return 1
+
+        assert my_named_function.__name__ == "my_named_function"
+
+    def test_wrap_option_passes_args_and_kwargs(self):
+        """Decorated function still receives its original arguments."""
+
+        @wrap_option
+        def add(a, b, *, c=0):
+            return a + b + c
+
+        result = add(1, 2, c=3)
+        assert result.is_some()
         assert result.unwrap() == 6

@@ -523,3 +523,45 @@ def wrap_result[T, E](
         return Ok(outcome)
 
     return wrapper
+
+
+def wrap_option[T](func: Callable[..., T | Option[T]]) -> Callable[..., Option[T]]:
+    """Decorate a function so exceptions and return values both become an Option.
+
+    Mirrors wrap_result() for the Option case:
+    - Returns an Option already? Passed through unchanged.
+    - Returns a non-None plain value? Wrapped as Some(value).
+    - Returns None? Converted to Nothing (matching nullable()'s existing
+      None-handling, so there's a single None-handling convention).
+    - Raises? Caught and converted to Nothing, auto-logged via Nothing's
+      own constructor.
+
+    Args:
+        func: The function to decorate. May return T, None, or Option[T].
+
+    Returns:
+        A wrapped function that always returns an Option[T].
+
+    Examples:
+        >>> @wrap_option
+        ... def find(items: list[int], target: int) -> int | None:
+        ...     return next((x for x in items if x == target), None)
+        >>> find([1, 2, 3], 2).unwrap()
+        2
+        >>> find([1, 2, 3], 9).is_nothing()
+        True
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Option[T]:
+        try:
+            outcome = func(*args, **kwargs)
+        except Exception as e:
+            return Nothing.from_exception(e)
+        if isinstance(outcome, Option):
+            return outcome
+        if outcome is None:
+            return Nothing.from_none("Function returned None")
+        return Some(outcome)
+
+    return wrapper

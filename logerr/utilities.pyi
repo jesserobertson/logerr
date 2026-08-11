@@ -125,3 +125,7 @@ def wrap_result[T, E](
 ) -> Callable[..., Result[T, E]]:
     """Decorate a function so exceptions and return values both become a Result."""
     ...
+
+def wrap_option[T](func: Callable[..., T | Option[T]]) -> Callable[..., Option[T]]:
+    """Decorate a function so exceptions and return values both become an Option."""
+    ...
