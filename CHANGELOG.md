@@ -8,6 +8,16 @@ a 1.0 stability commitment is made.
 
 ## [Unreleased]
 
+### Added
+
+- `wrap_result()`/`wrap_option()` in `logerr.utilities`: decorate a whole
+  function so exceptions become `Err`/`Nothing`, a returned `Result`/
+  `Option` passes through unchanged, and a plain return value is wrapped
+  as `Ok`/`Some` (`None` -> `Nothing` for `wrap_option`). Eliminates
+  manual `try/except`-to-`Err` boilerplate and the
+  `unwrap_err()`-then-rewrap pattern around functions that mix ordinary
+  code with Result/Option-returning calls.
+
 ## [0.2.0] - 2026-07-25
 
 First published release - everything below was previously unreleased

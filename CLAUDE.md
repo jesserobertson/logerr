@@ -342,6 +342,25 @@ def retry_operation(max_attempts: int | None = None) -> None:
 | `error()` | Standardized validation error messages | Consistent error formatting |
 | `pipe()` | Pipeline-style composition of functions | Multi-step transforms without nesting |
 | `try_chain()` | Try callables in order, return first success | Fallback strategies |
+| `wrap_result()` | Decorate a function so exceptions -> Err, returned Result passes through, plain value -> Ok | Mixing ordinary code (context managers, multiple statements) with Result-returning calls without manual try/except |
+| `wrap_option()` | Decorate a function so exceptions -> Nothing, returned Option passes through, plain value -> Some/None -> Nothing | Same as wrap_result(), for Option-returning functions |
+
+`wrap_result()`/`wrap_option()` solve a different problem than `execute()`:
+`execute()` wraps a single callable's *return value*; `wrap_result()`/
+`wrap_option()` decorate a whole function so its *body* can mix ordinary
+imperative code (context managers, multiple statements) with
+Result/Option-returning calls, with no manual `try/except` and no
+`unwrap_err()`-then-rewrap when a call already returns a `Result`/`Option`:
+
+```python
+@wrap_result
+def pull_all(settings, feature_refs) -> Result[list[Feature], Exception]:
+    with httpx.Client() as http_client:
+        return traverse_result(
+            feature_refs,
+            lambda ref: pull_feature(http_client, ref, settings.data_dir / "features"),
+        )
+```
 
 ### **Combinator Methods on Option/Result**
 
