@@ -4,7 +4,7 @@ Tests for utility functions in logerr.utilities module.
 
 import pytest
 
-from logerr import Nothing, Some
+from logerr import Err, Nothing, Ok, Some
 from logerr.utilities import (
     attribute,
     chain,
@@ -16,6 +16,7 @@ from logerr.utilities import (
     resolve,
     try_chain,
     validate,
+    wrap_result,
 )
 
 pytestmark = pytest.mark.unit
@@ -374,3 +375,73 @@ class TestChain:
             success_wrapper=Some,
         )
         assert result.is_nothing()
+
+
+class TestWrapResult:
+    """Test the wrap_result decorator."""
+
+    def test_wrap_result_raw_value_becomes_ok(self):
+        """A plain return value is wrapped as Ok."""
+
+        @wrap_result
+        def f():
+            return 42
+
+        result = f()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+
+    def test_wrap_result_passes_through_ok(self):
+        """A returned Ok is passed through unchanged, not re-wrapped."""
+
+        @wrap_result
+        def f():
+            return Ok(42)
+
+        result = f()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+
+    def test_wrap_result_passes_through_err_without_rewrap(self):
+        """A returned Err is passed through unchanged - no unwrap_err/rewrap needed."""
+        inner_err = Err.from_value("boom")
+
+        @wrap_result
+        def f():
+            return inner_err
+
+        result = f()
+        assert result.is_err()
+        assert result is inner_err
+
+    def test_wrap_result_exception_becomes_err(self):
+        """A raised exception is caught and converted to Err."""
+
+        @wrap_result
+        def f():
+            raise ValueError("bad input")
+
+        result = f()
+        assert result.is_err()
+        assert isinstance(result.unwrap_err(), ValueError)
+        assert str(result.unwrap_err()) == "bad input"
+
+    def test_wrap_result_preserves_function_name(self):
+        """functools.wraps preserves __name__, matching on_err's convention."""
+
+        @wrap_result
+        def my_named_function():
+            return 1
+
+        assert my_named_function.__name__ == "my_named_function"
+
+    def test_wrap_result_passes_args_and_kwargs(self):
+        """Decorated function still receives its original arguments."""
+
+        @wrap_result
+        def add(a, b, *, c=0):
+            return a + b + c
+
+        result = add(1, 2, c=3)
+        assert result.is_ok()
+        assert result.unwrap() == 6

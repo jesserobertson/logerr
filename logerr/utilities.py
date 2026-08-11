@@ -8,6 +8,7 @@ parameter resolution, exception-safe chaining, and simple logging.
 
 from __future__ import annotations
 
+import functools
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -478,3 +479,47 @@ def try_chain[T](*callables: Callable[[], T]) -> Option[T]:
         except Exception:
             continue
     return Nothing.from_none("All callables failed")
+
+
+def wrap_result[T, E](
+    func: Callable[..., T | Result[T, E]],
+) -> Callable[..., Result[T, E]]:
+    """Decorate a function so exceptions and return values both become a Result.
+
+    Eliminates the common try/except-then-return-Err boilerplate around a
+    function body that mixes ordinary code with Result-returning calls:
+    - Returns a Result already? Passed through unchanged - no unwrap_err()
+      then re-wrap needed.
+    - Returns a plain value? Wrapped as Ok(value).
+    - Raises? Caught and converted to Err(exception), auto-logged the same
+      way Result.of() already logs (via Err's own constructor).
+
+    Args:
+        func: The function to decorate. May return T or Result[T, E].
+
+    Returns:
+        A wrapped function that always returns a Result[T, E].
+
+    Examples:
+        >>> @wrap_result
+        ... def parse(text: str) -> int:
+        ...     return int(text)
+        >>> parse("42").unwrap()
+        42
+        >>> parse("nope").is_err()
+        True
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Result[T, E]:
+        try:
+            outcome = func(*args, **kwargs)
+        except Exception as e:
+            # Type: ignore because exception handling changes the error type,
+            # but this is expected behavior (see Result.from_predicate).
+            return Err.from_exception(e)  # type: ignore[return-value]
+        if isinstance(outcome, Result):
+            return outcome
+        return Ok(outcome)
+
+    return wrapper

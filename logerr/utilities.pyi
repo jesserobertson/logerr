@@ -119,3 +119,9 @@ def pipe[T](value: T, *functions: Callable[[Any], Any]) -> Result[Any, Exception
 def try_chain[T](*callables: Callable[[], T]) -> Option[T]:
     """Try a series of callables until one succeeds."""
     ...
+
+def wrap_result[T, E](
+    func: Callable[..., T | Result[T, E]],
+) -> Callable[..., Result[T, E]]:
+    """Decorate a function so exceptions and return values both become a Result."""
+    ...
