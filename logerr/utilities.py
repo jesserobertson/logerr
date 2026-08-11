@@ -490,9 +490,20 @@ def wrap_result[T, E](
     function body that mixes ordinary code with Result-returning calls:
     - Returns a Result already? Passed through unchanged - no unwrap_err()
       then re-wrap needed.
-    - Returns a plain value? Wrapped as Ok(value).
+    - Returns a plain value? Wrapped as Ok(value). This includes None - a
+      None return is wrapped as Ok(None), not treated as an error (contrast
+      with wrap_option(), where a None return becomes Nothing).
     - Raises? Caught and converted to Err(exception), auto-logged the same
       way Result.of() already logs (via Err's own constructor).
+
+    Note:
+        wrap_result and wrap_option are not interchangeable. Decorating a
+        function whose return type doesn't match the decorator (e.g.
+        @wrap_option on a function that returns a Result) does not raise or
+        warn - it just wraps that return value as the success case, e.g.
+        @wrap_option on a Result-returning function gives Some(Ok(...)),
+        and @wrap_result on an Option-returning function gives Ok(Nothing(...)).
+        Pick the decorator that matches the function's actual return type.
 
     Args:
         func: The function to decorate. May return T or Result[T, E].
@@ -536,6 +547,16 @@ def wrap_option[T](func: Callable[..., T | Option[T]]) -> Callable[..., Option[T
     - Raises? Caught and converted to Nothing, auto-logged via Nothing's
       own constructor.
 
+    Note:
+        wrap_result and wrap_option are not interchangeable. Decorating a
+        function whose return type doesn't match the decorator (e.g.
+        @wrap_result on a function that returns an Option) does not raise
+        or warn - it just wraps that return value as the success case,
+        e.g. @wrap_result on an Option-returning function gives
+        Ok(Nothing(...)), and @wrap_option on a Result-returning function
+        gives Some(Ok(...)). Pick the decorator that matches the
+        function's actual return type.
+
     Args:
         func: The function to decorate. May return T, None, or Option[T].
 
@@ -561,7 +582,7 @@ def wrap_option[T](func: Callable[..., T | Option[T]]) -> Callable[..., Option[T
         if isinstance(outcome, Option):
             return outcome
         if outcome is None:
-            return Nothing.from_none("Function returned None")
+            return Nothing.from_none(f"{func.__name__} returned None")
         return Some(outcome)
 
     return wrapper

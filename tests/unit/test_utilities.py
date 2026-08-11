@@ -447,6 +447,21 @@ class TestWrapResult:
         assert result.is_ok()
         assert result.unwrap() == 6
 
+    def test_wrap_result_base_exception_propagates(self):
+        """A BaseException that isn't an Exception (e.g. KeyboardInterrupt)
+        propagates rather than being converted to Err - only `except Exception`
+        is caught, so control-flow signals and bugs aren't silently masked."""
+
+        class _Signal(BaseException):
+            pass
+
+        @wrap_result
+        def f():
+            raise _Signal("interrupted")
+
+        with pytest.raises(_Signal):
+            f()
+
 
 class TestWrapOption:
     """Test the wrap_option decorator."""
@@ -495,8 +510,24 @@ class TestWrapOption:
         assert result.is_nothing()
         assert result is inner_nothing
 
+    def test_wrap_option_passes_through_some_none(self):
+        """A returned Some(None) is passed through unchanged, not treated as
+        the raw-None case - distinguishes explicit Some(None) from a raw None
+        return becoming Nothing. Relies on the isinstance(outcome, Option)
+        check running before the None check in the implementation."""
+
+        @wrap_option
+        def f():
+            return Some(None)
+
+        result = f()
+        assert result.is_some()
+        assert result.unwrap() is None
+
     def test_wrap_option_exception_becomes_nothing(self):
-        """A raised exception is caught and converted to Nothing."""
+        """A raised exception is caught and converted to Nothing, and the
+        original exception is preserved for re-raise on unwrap(), mirroring
+        wrap_result's exception-preservation guarantee."""
 
         @wrap_option
         def f():
@@ -504,6 +535,8 @@ class TestWrapOption:
 
         result = f()
         assert result.is_nothing()
+        with pytest.raises(ValueError, match="bad input"):
+            result.unwrap()
 
     def test_wrap_option_preserves_function_name(self):
         """functools.wraps preserves __name__, matching wrap_result's convention."""
@@ -524,3 +557,19 @@ class TestWrapOption:
         result = add(1, 2, c=3)
         assert result.is_some()
         assert result.unwrap() == 6
+
+    def test_wrap_option_base_exception_propagates(self):
+        """A BaseException that isn't an Exception (e.g. KeyboardInterrupt)
+        propagates rather than being converted to Nothing - only
+        `except Exception` is caught, so control-flow signals and bugs
+        aren't silently masked."""
+
+        class _Signal(BaseException):
+            pass
+
+        @wrap_option
+        def f():
+            raise _Signal("interrupted")
+
+        with pytest.raises(_Signal):
+            f()

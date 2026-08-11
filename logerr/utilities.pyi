@@ -120,12 +120,39 @@ def try_chain[T](*callables: Callable[[], T]) -> Option[T]:
     """Try a series of callables until one succeeds."""
     ...
 
-def wrap_result[T, E](
-    func: Callable[..., T | Result[T, E]],
-) -> Callable[..., Result[T, E]]:
+# The two overloads below necessarily overlap: a call whose func returns
+# Result[T, E] also satisfies the generic `Callable[P, T]` overload below
+# (with T bound to Result[T, E] itself), and mypy flags that as
+# incompatible-return-type overlap. The Result-specific overload MUST stay
+# first so real calls resolve against it rather than the generic fallback -
+# reordering to silence the warning would make wrap_result on a
+# Result-returning function double-wrap it (Result[Result[T, E], Exception])
+# instead of passing it through, which is the exact bug this stub exists to
+# prevent. Silencing via ignore is intentional, not a reordering fix.
+@overload
+def wrap_result[**P, T, E](  # type: ignore[overload-overlap]
+    func: Callable[P, Result[T, E]],
+) -> Callable[P, Result[T, E]]:
     """Decorate a function so exceptions and return values both become a Result."""
     ...
 
-def wrap_option[T](func: Callable[..., T | Option[T]]) -> Callable[..., Option[T]]:
+@overload
+def wrap_result[**P, T](
+    func: Callable[P, T],
+) -> Callable[P, Result[T, Exception]]:
+    """Decorate a function so exceptions and return values both become a Result."""
+    ...
+
+@overload
+def wrap_option[**P, T](
+    func: Callable[P, Option[T]],
+) -> Callable[P, Option[T]]:
+    """Decorate a function so exceptions and return values both become an Option."""
+    ...
+
+@overload
+def wrap_option[**P, T](
+    func: Callable[P, T | None],
+) -> Callable[P, Option[T]]:
     """Decorate a function so exceptions and return values both become an Option."""
     ...
