@@ -8,6 +8,8 @@ a 1.0 stability commitment is made.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-16
+
 ### Added
 
 - `wrap_result()`/`wrap_option()` in `logerr.utilities`: decorate a whole
