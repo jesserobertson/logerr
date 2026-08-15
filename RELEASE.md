@@ -1,247 +1,67 @@
-# Release Guide for logerr
+# Release process for logerr
 
-This document outlines the complete process for releasing logerr to PyPI.
+This reflects how releases actually work today - trusted publishing is live,
+there's no `.pypirc`/API token anywhere, and `pixi.toml` no longer exists as
+a separate file (folded into `pyproject.toml`).
 
-## Automated Release (scaffolded, not yet active)
+## How it works
 
-`.github/workflows/publish.yml` exists but is **not functional yet** - it
-uses PyPI trusted publishing (OIDC), which requires configuring this repo
-as a trusted publisher on the PyPI project settings page first. It's
-manual-trigger only (`workflow_dispatch`, choose testpypi or pypi), never
-triggered automatically by a tag push. Until trusted publishing is set up,
-use the manual process below.
-
-## 🔍 Pre-Release Checklist
-
-Before starting the release process, ensure all these steps are completed:
-
-### 1. Code Quality & Testing
-```bash
-# Run all quality checks - ALL MUST PASS
-pixi run -e dev check-all
-
-# This runs:
-# - pytest tests/ --doctest-modules logerr --cov=logerr --cov-report=term
-# - mypy logerr  
-# - ruff check logerr tests && ruff format --check logerr tests
-```
-
-### 2. Version Management
-- Update version in `pyproject.toml`
-- Update version in `logerr/__init__.py`
-- Update any version references in `README.md`
-
-### 3. Documentation
-- Ensure README.md is up to date
-- Check that all examples in README work
-- Verify API documentation is current
-
-### 4. Security Review
-- ✅ **Completed**: No vulnerabilities found in codebase
-- No hardcoded secrets or credentials
-- All dependencies are secure and up to date
-
-## 🚀 PyPI Release Process
-
-### Step 1: PyPI Account Setup
-
-#### Create Accounts (if not already done)
-- **TestPyPI**: https://test.pypi.org/account/register/
-- **PyPI**: https://pypi.org/account/register/
-
-Both accounts require:
-- Email verification
-- 2FA enabled (required for token generation)
-
-#### Generate API Tokens
-1. **TestPyPI Token**: https://test.pypi.org/manage/account/token/
-2. **PyPI Token**: https://pypi.org/manage/account/token/
-
-Create tokens with "Entire account" scope or project-specific scope.
-
-### Step 2: Configure Authentication
-
-Create `~/.pypirc`:
-```ini
-[distutils]
-index-servers = 
-    pypi
-    testpypi
-
-[pypi]
-username = __token__
-password = pypi-YOUR_PRODUCTION_TOKEN_HERE
-
-[testpypi]
-repository = https://test.pypi.org/legacy/
-username = __token__
-password = pypi-YOUR_TEST_TOKEN_HERE
-```
-
-**Security Note**: Keep these tokens secure and never commit them to version control.
-
-### Step 3: Build Packages
-
-```bash
-pixi run -e dev build package
-
-# Verify build contents
-python -m zipfile -l dist/*.whl
-```
-
-### Step 4: Validate Packages
-```bash
-# Check package integrity
-twine check dist/*
-
-# Should output: "Checking distribution dist/logerr-X.X.X.tar.gz: Passed"
-#                "Checking distribution dist/logerr-X.X.X-py3-none-any.whl: Passed"
-```
-
-### Step 5: Test Release (TestPyPI)
-
-**Always test on TestPyPI first!**
-
-```bash
-# Upload to TestPyPI
-twine upload --repository testpypi dist/*
-
-# Verify upload at: https://test.pypi.org/project/logerr/
-```
-
-#### Test Installation from TestPyPI
-```bash
-# Create a test environment
-python -m venv test_env
-source test_env/bin/activate  # On Windows: test_env\Scripts\activate
-
-# Install from TestPyPI
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ logerr
-
-# Test basic functionality
-python -c "
-from logerr import Ok, Err, Some, Nothing, configure
-print('✅ Basic imports successful')
-
-# Test core functionality
-result = Ok(42).map(lambda x: x * 2)
-assert result.unwrap() == 84
-print('✅ Core functionality works')
-
-# Test optional recipes (if available)
-try:
-    from logerr.recipes import retry
-    print('✅ Recipes module available')
-except ImportError:
-    print('ℹ️ Recipes module not available (optional)')
-
-print('🎉 Package installation successful!')
-"
-
-# Clean up
-deactivate
-rm -rf test_env
-```
-
-### Step 6: Production Release (PyPI)
-
-**Only after TestPyPI testing is successful:**
-
-```bash
-# Upload to production PyPI
-twine upload dist/*
-
-# Verify at: https://pypi.org/project/logerr/
-```
-
-### Step 7: Post-Release Tasks
-
-1. **Create Git Tag**:
+1. **Bump the version** in two places (checked by `check-version-sync`):
+   - `pyproject.toml`'s `[project] version`
+   - `logerr/__init__.py`'s `__version__`
+2. **Update `CHANGELOG.md`**: move the `[Unreleased]` section's contents
+   under a new dated `## [X.Y.Z] - YYYY-MM-DD` heading.
+3. **Verify locally**:
    ```bash
-   git tag -a v0.1.0 -m "Release version 0.1.0"
-   git push origin v0.1.0
+   pixi run -e dev check-all   # tests + quality + version-sync
    ```
+4. **Commit and push to `main`.**
+5. **Tag and push**:
+   ```bash
+   git tag -a vX.Y.Z -m "logerr X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+   Pushing the tag automatically builds the package and publishes it to
+   **TestPyPI** (`.github/workflows/publish.yml`, triggered by `v*` tags).
+   This is cheap and fully reversible - TestPyPI is a scratch index, so no
+   human checkpoint is needed for it.
+6. **Sanity-check the TestPyPI upload**:
+   ```bash
+   pip install -i https://test.pypi.org/simple/ logerr==X.Y.Z
+   ```
+7. **Publish to real PyPI manually**: GitHub → Actions → *Publish to PyPI*
+   → *Run workflow* → choose `pypi`. This step is **never** automatic - a
+   published version number on real PyPI can never be reused, unlike a git
+   tag (delete and re-push) or a TestPyPI upload (scratch index), so it
+   stays behind a deliberate human trigger.
 
-2. **Update Documentation**:
-   - Update installation instructions if needed
-   - Publish documentation updates
+## Trusted publishing (no tokens)
 
-3. **Announce Release**:
-   - GitHub release notes
-   - Update project status badges if needed
+Both `publish-testpypi` and `publish-pypi` jobs use PyPI's OIDC trusted
+publishing (`permissions: id-token: write` + `pypa/gh-action-pypi-publish`)
+rather than an API token. This was configured once, by hand, at
+https://pypi.org/manage/account/publishing/ and
+https://test.pypi.org/manage/account/publishing/ - Owner `jesserobertson`,
+Repo `logerr`, Workflow `publish.yml`, Environment `pypi` (and `testpypi`
+for the TestPyPI side). If publishing ever needs re-registering (new repo
+name, moved workflow file, etc.), that page is where it happens - there is
+no secret to rotate.
 
-## 🔧 Using Pixi Commands
+## CI, on every push/PR
 
-```bash
-# Build package
-pixi run -e dev build package
+`.github/workflows/ci.yml` runs quality checks, the full test matrix
+(ubuntu/macos/windows + a Python 3.13 leg), and uploads coverage + test
+results to Codecov (`CODECOV_TOKEN` secret - required even for public repos
+now, Codecov's tokenless upload policy changed). Codecov tokens are
+per-repo: if coverage stops showing up on
+https://app.codecov.io/github/jesserobertson/logerr, the first thing to
+check is whether `CODECOV_TOKEN` in this repo's secrets actually holds
+*this* repo's token and not another repo's (the upload log line "results
+will be available at: https://app.codecov.io/github/<owner>/<repo>/commit/..."
+tells you which project a given run actually landed under).
 
-# Check package
-pixi run -e dev build check
+## Version support policy
 
-# Upload to TestPyPI
-pixi run -e dev build upload --repository testpypi
-
-# Upload to PyPI
-pixi run -e dev build upload --repository pypi
-
-# Clean build artifacts
-pixi run -e dev build clean
-```
-
-## 📋 Package Contents Verification
-
-Your wheel should include:
-- `logerr/` - Main package
-- `logerr/recipes/` - Optional functionality
-- `*.pyi` - Type stub files
-- `py.typed` - PEP 561 marker file
-
-Verify with:
-```bash
-python -m zipfile -l dist/logerr-*.whl
-```
-
-Expected structure:
-```
-logerr/__init__.py
-logerr/__init__.pyi
-logerr/config.py
-logerr/config.pyi
-logerr/option.py
-logerr/option.pyi
-logerr/result.py  
-logerr/result.pyi
-logerr/utilities.py
-logerr/utilities.pyi
-logerr/py.typed
-logerr/recipes/__init__.py
-logerr/recipes/config.py
-logerr/recipes/retry.py
-logerr/recipes/retry.pyi
-logerr/recipes/dataframes/...
-```
-
-## 🚨 Troubleshooting
-
-### Build Issues
-- **Python 3.13 compatibility**: Use system Python instead of pixi environment
-- **Missing files**: Check `tool.setuptools.package-data` in `pyproject.toml`
-- **Type stubs**: Ensure `.pyi` files are included
-
-### Upload Issues
-- **Authentication**: Verify API tokens in `~/.pypirc`
-- **403 Forbidden**: Check token permissions and 2FA
-- **Version conflicts**: Ensure version number is incremented
-
-### Installation Issues
-- **Import errors**: Check package structure and dependencies
-- **Type checking**: Verify `py.typed` file is included
-
-## 📚 References
-
-- [Python Packaging Guide](https://packaging.python.org/)
-- [Twine Documentation](https://twine.readthedocs.io/)
-- [TestPyPI](https://test.pypi.org/)
-- [PyPI](https://pypi.org/)
-- [PEP 561 - Type Stubs](https://www.python.org/dev/peps/pep-0561/)
+Pre-1.0: breaking changes may land in a minor version bump per
+`CHANGELOG.md`'s stated policy. There's no LTS/backport branch - only
+`main` and its latest tag are supported.
