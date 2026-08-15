@@ -1,21 +1,15 @@
 name: Publish to PyPI
 
-# SCAFFOLDED BUT NOT YET FUNCTIONAL.
-#
-# This workflow will fail if run right now: it uses PyPI's trusted
-# publishing (OIDC), which requires configuring this repo + workflow as a
-# trusted publisher on the PyPI project page first
-# (https://pypi.org/manage/project/logerr/settings/publishing/, or
-# https://pypi.org/manage/account/publishing/ before the project exists on
-# PyPI). There is no API token secret configured as a fallback, by design -
-# don't add one without discussing it first.
-#
-# Deliberately manual-trigger only (workflow_dispatch) for now, not
-# triggered by tag pushes - review the built artifacts before ever running
-# this, and only wire up a tag trigger once a real release process is
-# wanted.
+# Pushing a `v*` tag auto-builds and auto-publishes to TestPyPI - cheap and
+# reversible (TestPyPI is a scratch index), so no human checkpoint needed
+# there. Real PyPI is a one-way door - a published version number can never
+# be reused - so it stays behind manual workflow_dispatch, never triggered
+# by a tag push.
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       repository:
@@ -61,10 +55,11 @@ jobs:
         name: dist
         path: dist/
 
-  publish:
+  publish-testpypi:
+    if: github.event_name == 'push' || inputs.repository == 'testpypi'
     needs: build
     runs-on: ubuntu-latest
-    environment: ${{ inputs.repository }}
+    environment: testpypi
     permissions:
       id-token: write # required for PyPI trusted publishing
 
@@ -76,11 +71,24 @@ jobs:
         path: dist/
 
     - name: Publish to TestPyPI
-      if: inputs.repository == 'testpypi'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
 
+  publish-pypi:
+    if: github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # required for PyPI trusted publishing
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: dist
+        path: dist/
+
     - name: Publish to PyPI
-      if: inputs.repository == 'pypi'
       uses: pypa/gh-action-pypi-publish@release/v1
