@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Check that the project version is consistent across pixi.toml, pyproject.toml,
-and logerr/__init__.py.
+Check that the project version is consistent across pyproject.toml and
+logerr/__init__.py.
 
-There's no single source of truth for the version (pixi and setuptools both
-need their own literal version string), so this script exists to catch the
-three from silently drifting apart rather than trying to eliminate the
-duplication.
+There's no single source of truth for the version (setuptools reads
+pyproject.toml, but the package's own __version__ attribute is a separate
+literal string), so this script exists to catch the two from silently
+drifting apart rather than trying to eliminate the duplication.
 """
 
 import re
@@ -15,11 +15,6 @@ import tomllib
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
-
-
-def get_pixi_version() -> str:
-    data = tomllib.loads((PROJECT_ROOT / "pixi.toml").read_text())
-    return data["workspace"]["version"]
 
 
 def get_pyproject_version() -> str:
@@ -37,7 +32,6 @@ def get_init_version() -> str:
 
 def main() -> None:
     versions = {
-        "pixi.toml": get_pixi_version(),
         "pyproject.toml": get_pyproject_version(),
         "logerr/__init__.py": get_init_version(),
     }
