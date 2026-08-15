@@ -135,6 +135,7 @@ def all(
         "--doctest-glob=*.md",
         "-m",
         "not slow",
+        "--junitxml=junit.xml",
     ]
 
     if verbose:

@@ -15,8 +15,9 @@ __pycache__/
 site/
 
 # Ignore dotfiles
-.coverage 
+.coverage
 coverage.xml
+junit.xml
 .envrc 
 .hypothesis
 .claude
