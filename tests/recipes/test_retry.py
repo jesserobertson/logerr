@@ -486,6 +486,41 @@ class TestRetryHooks:
         assert call_count == 4
         assert retries == [(1, "not yet"), (2, "not yet"), (3, "not yet")]
 
+    def test_on_retry_does_not_leak_stale_err_across_attempts(self):
+        """on_retry must reflect *this* attempt's failure, not a stale one.
+
+        Attempt 1 returns Err("a"); attempt 2 raises an exception directly
+        (not via Err). on_retry(2, ...) must carry attempt 2's own
+        exception, not the "a" left over from attempt 1.
+        """
+        payloads: list[tuple[int, object]] = []
+        call_count = 0
+
+        @retry.on_err(
+            stop=stop_after_attempt(3),
+            wait=wait_none(),
+            on_retry=lambda n, err: payloads.append((n, err)),
+        )
+        def op() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return Err("a")
+            if call_count == 2:
+                raise RuntimeError("boom")
+            return Ok(42)
+
+        result = op()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+        assert call_count == 3
+        assert len(payloads) == 2
+        assert payloads[0] == (1, "a")
+        attempt_number, payload = payloads[1]
+        assert attempt_number == 2
+        assert isinstance(payload, RuntimeError)
+        assert str(payload) == "boom"
+
     def test_composite_retry_429_twice_then_ok_with_before_attempt(self):
         """retry_if + before_attempt compose: retry 429s, count attempts."""
         attempts: list[int] = []

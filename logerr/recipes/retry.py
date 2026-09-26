@@ -54,7 +54,10 @@ def _make_retry_wrapper(
     def wrapper(*args: Any, **kwargs: Any) -> Result[T, E]:
         last_result: Result[T, E] | None = None
         attempt_count = 0
-        current_error: E | None = None
+        # Reset at the top of every attempt (see below) so a stale value
+        # from an earlier attempt's Err can never leak into this attempt's
+        # on_retry call.
+        attempt_error: E | None = None
 
         actual_stop = Option.from_nullable(stop).unwrap_or_else(
             lambda: stop_after_attempt(3)
@@ -80,8 +83,20 @@ def _make_retry_wrapper(
             # Only invoked by tenacity when it has already decided to retry
             # (not on the final, exhausting attempt), which is exactly
             # on_retry's contract.
-            if on_retry is not None:
-                on_retry(retry_state.attempt_number, cast(E, current_error))
+            if on_retry is None:
+                return
+            # attempt_error is set only when this attempt returned Err; if
+            # func() raised directly instead, fall back to the exception
+            # tenacity captured for this attempt rather than an Err from a
+            # previous one.
+            payload = (
+                attempt_error
+                if attempt_error is not None
+                else retry_state.outcome.exception()
+                if retry_state.outcome is not None
+                else None
+            )
+            on_retry(retry_state.attempt_number, cast(E, payload))
 
         try:
             for attempt in Retrying(
@@ -91,6 +106,7 @@ def _make_retry_wrapper(
                 before_sleep=_before_sleep,
             ):
                 attempt_count += 1
+                attempt_error = None
 
                 # Called before entering `with attempt:` so a raised
                 # exception is plain Python control flow tenacity never
@@ -105,7 +121,7 @@ def _make_retry_wrapper(
 
                     if result.is_err():
                         error = result.unwrap_err()
-                        current_error = error
+                        attempt_error = error
 
                         if error_types is not None and not isinstance(
                             error, error_types
@@ -119,8 +135,9 @@ def _make_retry_wrapper(
 
                         if retry_if is not None and not retry_if(error):
                             if log_attempts:
-                                logger.warning(
-                                    f"{func_name} failed after {attempt_count} attempts"
+                                logger.debug(
+                                    f"{func_name} failed with not-retryable "
+                                    f"(retry_if) error: {error}"
                                 )
                             return result
 
@@ -179,14 +196,24 @@ def on_err(
 ) -> Callable[[Callable[..., Result[T, E]]], Callable[..., Result[T, E]]]:
     """Retry a Result-returning function when it returns Err.
 
+    ``retry_if``, ``before_attempt``, and ``on_retry`` all key off a
+    returned ``Err`` value. An exception the wrapped function *raises*
+    directly (instead of returning as ``Err``) bypasses ``retry_if``
+    entirely and is retried unconditionally per tenacity's default policy,
+    same as before these hooks existed. Wrap the risky call with
+    ``Result.of(...)`` first if you need it filtered too:
+    ``Result.of(lambda: risky())`` turns a raised exception into an
+    ``Err`` the hooks can see.
+
     Args:
         stop: Tenacity stop condition (when to stop retrying).
         wait: Tenacity wait condition (how long to wait between retries).
         log_attempts: Whether to log retry attempts.
         retry_if: Predicate on the Err value; retry only when it returns
             True. When it returns False, retrying stops immediately and
-            that Err is returned (logged as a final failure). Defaults to
-            always retrying, matching the pre-existing behaviour.
+            that Err is returned (logged at DEBUG as not retryable).
+            Defaults to always retrying, matching the pre-existing
+            behaviour.
         before_attempt: Called before every attempt with the 1-based
             attempt number (including the first). If it raises, that
             exception propagates to the caller unchanged - it is not
@@ -254,6 +281,15 @@ def on_err_type(
 ) -> Callable[[Callable[..., Result[T, E]]], Callable[..., Result[T, E]]]:
     """Retry only when Result contains specific exception types.
 
+    ``error_types``, ``retry_if``, ``before_attempt``, and ``on_retry`` all
+    key off a returned ``Err`` value. An exception the wrapped function
+    *raises* directly (instead of returning as ``Err``) bypasses both the
+    ``error_types`` check and ``retry_if`` entirely and is retried
+    unconditionally per tenacity's default policy, same as before these
+    hooks existed. Wrap the risky call with ``Result.of(...)`` first if you
+    need it filtered too: ``Result.of(lambda: risky())`` turns a raised
+    exception into an ``Err`` the checks and hooks can see.
+
     Args:
         error_types: Exception types that should trigger retries.
         stop: Tenacity stop condition.
@@ -261,9 +297,10 @@ def on_err_type(
         log_attempts: Whether to log retry attempts.
         retry_if: Additional predicate on the Err value, applied after the
             ``error_types`` check; retry only when it returns True. Useful
-            to exclude a subclass of an otherwise-retryable type. Defaults
-            to always retrying (matching pre-existing behaviour) once
-            ``error_types`` matches.
+            to exclude a subclass of an otherwise-retryable type. When it
+            returns False, that Err is returned immediately (logged at
+            DEBUG as not retryable). Defaults to always retrying (matching
+            pre-existing behaviour) once ``error_types`` matches.
         before_attempt: Called before every attempt with the 1-based
             attempt number (including the first). If it raises, that
             exception propagates to the caller unchanged.

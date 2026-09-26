@@ -21,9 +21,13 @@ a 1.0 stability commitment is made.
   unchanged instead of being retried or turned into an `Err`.
   `on_retry` runs after each failed attempt that will be retried (not the
   final one), receiving the attempt number and the `Err` value. All three
-  default to `None`, preserving existing behaviour exactly.
+  default to `None`, preserving existing behaviour exactly. Note:
+  `error_types`/`retry_if`/the hooks all key off a *returned* `Err` value -
+  an exception the wrapped function raises directly bypasses them and is
+  retried unconditionally per tenacity's default policy, same as before;
+  wrap the call with `Result.of(...)` first if you need it filtered too.
 
-### Fixed
+### Changed
 
 - `on_err`/`on_err_type` now compute `func_name` unconditionally instead of
   only inside `if log_attempts`, avoiding a possibly-unbound reference now
