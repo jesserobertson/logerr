@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from loguru import logger
 from tenacity import (  # type: ignore[import-not-found]
+    RetryCallState,
     RetryError,
     Retrying,
     stop_after_attempt,
@@ -28,10 +29,153 @@ E = TypeVar("E")
 U = TypeVar("U")
 
 
+def _make_retry_wrapper(
+    func: Callable[..., Result[T, E]],
+    *,
+    error_types: tuple[type[Exception], ...] | None,
+    stop: Any,
+    wait: Any,
+    log_attempts: bool,
+    retry_if: Callable[[E], bool] | None,
+    before_attempt: Callable[[int], None] | None,
+    on_retry: Callable[[int, E], None] | None,
+) -> Callable[..., Result[T, E]]:
+    """Shared implementation behind ``on_err``/``on_err_type``.
+
+    Both decorators retry a ``Result``-returning function by converting a
+    retryable ``Err`` into a raised exception tenacity can see, then
+    converting back to ``Result`` at the edges. ``error_types`` is the only
+    thing that differs between them (``None`` for ``on_err``, the type tuple
+    for ``on_err_type``); everything else - the retry loop, the hooks, the
+    logging shape - is identical, so it lives here once.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Result[T, E]:
+        last_result: Result[T, E] | None = None
+        attempt_count = 0
+        current_error: E | None = None
+
+        actual_stop = Option.from_nullable(stop).unwrap_or_else(
+            lambda: stop_after_attempt(3)
+        )
+        actual_wait = Option.from_nullable(wait).unwrap_or_else(
+            lambda: wait_exponential(multiplier=1, min=4, max=10)
+        )
+
+        # Defined unconditionally (not just under `if log_attempts`) so it's
+        # always available - including in the RetryError handler below.
+        func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
+
+        if log_attempts:
+            if error_types is not None:
+                logger.debug(
+                    f"Starting retry operation for {func_name} "
+                    f"(retrying on: {error_types})"
+                )
+            else:
+                logger.debug(f"Starting retry operation for {func_name}")
+
+        def _before_sleep(retry_state: RetryCallState) -> None:
+            # Only invoked by tenacity when it has already decided to retry
+            # (not on the final, exhausting attempt), which is exactly
+            # on_retry's contract.
+            if on_retry is not None:
+                on_retry(retry_state.attempt_number, cast(E, current_error))
+
+        try:
+            for attempt in Retrying(
+                stop=actual_stop,
+                wait=actual_wait,
+                reraise=False,
+                before_sleep=_before_sleep,
+            ):
+                attempt_count += 1
+
+                # Called before entering `with attempt:` so a raised
+                # exception is plain Python control flow tenacity never
+                # sees - it propagates to the caller unchanged instead of
+                # being treated as a retryable failure.
+                if before_attempt is not None:
+                    before_attempt(attempt_count)
+
+                with attempt:
+                    result = func(*args, **kwargs)
+                    last_result = result
+
+                    if result.is_err():
+                        error = result.unwrap_err()
+                        current_error = error
+
+                        if error_types is not None and not isinstance(
+                            error, error_types
+                        ):
+                            if log_attempts:
+                                logger.debug(
+                                    f"{func_name} failed with non-retryable error "
+                                    f"{type(error).__name__}: {error}"
+                                )
+                            return result
+
+                        if retry_if is not None and not retry_if(error):
+                            if log_attempts:
+                                logger.warning(
+                                    f"{func_name} failed after {attempt_count} attempts"
+                                )
+                            return result
+
+                        if log_attempts:
+                            if error_types is not None:
+                                logger.debug(
+                                    f"Attempt {attempt_count} of {func_name} failed "
+                                    f"with {type(error).__name__}: {error}"
+                                )
+                            else:
+                                logger.debug(
+                                    f"Attempt {attempt_count} of {func_name} "
+                                    f"failed: {error}"
+                                )
+
+                        # Convert to exception for tenacity
+                        if isinstance(error, Exception):
+                            raise error
+                        else:
+                            raise ValueError(f"Operation failed: {error}")
+
+                    # Success case
+                    if log_attempts and attempt_count > 1:
+                        logger.info(
+                            f"{func_name} succeeded after {attempt_count} attempts"
+                        )
+
+                    return result
+
+        except RetryError:
+            if log_attempts:
+                logger.warning(f"{func_name} failed after {attempt_count} attempts")
+
+            return (
+                last_result
+                if last_result is not None
+                else Err.from_value("All retry attempts failed")
+            )  # type: ignore
+
+        return (
+            last_result
+            if last_result is not None
+            else Err.from_value("Unknown retry error")
+        )  # type: ignore
+
+    return wrapper
+
+
 def on_err(
     stop: Any = None,
     wait: Any = None,
     log_attempts: bool = True,
+    retry_if: Callable[[E], bool] | None = None,
+    before_attempt: Callable[[int], None] | None = None,
+    on_retry: Callable[[int, E], None] | None = None,
 ) -> Callable[[Callable[..., Result[T, E]]], Callable[..., Result[T, E]]]:
     """Retry a Result-returning function when it returns Err.
 
@@ -39,6 +183,18 @@ def on_err(
         stop: Tenacity stop condition (when to stop retrying).
         wait: Tenacity wait condition (how long to wait between retries).
         log_attempts: Whether to log retry attempts.
+        retry_if: Predicate on the Err value; retry only when it returns
+            True. When it returns False, retrying stops immediately and
+            that Err is returned (logged as a final failure). Defaults to
+            always retrying, matching the pre-existing behaviour.
+        before_attempt: Called before every attempt with the 1-based
+            attempt number (including the first). If it raises, that
+            exception propagates to the caller unchanged - it is not
+            converted to an Err, not retried, and never surfaces as a
+            tenacity RetryError.
+        on_retry: Called with the 1-based attempt number and the Err value
+            after each failed attempt that will be retried. Not called
+            after the final, exhausting attempt.
 
     Examples:
         >>> @on_err(stop=stop_after_attempt(3))
@@ -48,74 +204,41 @@ def on_err(
         >>> @on_err(wait=wait_fixed(1), log_attempts=True)
         ... def network_call() -> Result[str, Exception]:
         ...     return Ok("success")
+
+        Only retry Err values that satisfy a predicate - here, retry on a
+        429 status but give up immediately on anything else:
+
+        >>> from tenacity import wait_none
+        >>> @on_err(wait=wait_none(), retry_if=lambda status: status == 429)
+        ... def call_api() -> Result[str, int]:
+        ...     return Err(404)
+        >>> call_api()
+        Err(404)
+
+        ``before_attempt``/``on_retry`` observe attempts without changing
+        control flow - handy for attempt counters or budget checks:
+
+        >>> attempts = []
+        >>> @on_err(wait=wait_none(), before_attempt=attempts.append)
+        ... def flaky() -> Result[int, str]:
+        ...     return Ok(1) if len(attempts) >= 2 else Err("not yet")
+        >>> flaky().unwrap()
+        1
+        >>> attempts
+        [1, 2]
     """
 
     def decorator(func: Callable[..., Result[T, E]]) -> Callable[..., Result[T, E]]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Result[T, E]:
-            last_result: Result[T, E] | None = None
-            attempt_count = 0
-
-            # Use functional API for parameter defaults
-
-            actual_stop = Option.from_nullable(stop).unwrap_or_else(
-                lambda: stop_after_attempt(3)
-            )
-            actual_wait = Option.from_nullable(wait).unwrap_or_else(
-                lambda: wait_exponential(multiplier=1, min=4, max=10)
-            )
-
-            if log_attempts:
-                func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
-                logger.debug(f"Starting retry operation for {func_name}")
-
-            try:
-                for attempt in Retrying(
-                    stop=actual_stop, wait=actual_wait, reraise=False
-                ):
-                    with attempt:
-                        attempt_count += 1
-                        result = func(*args, **kwargs)
-                        last_result = result
-
-                        if result.is_err():
-                            error = result.unwrap_err()
-                            if log_attempts:
-                                logger.debug(
-                                    f"Attempt {attempt_count} of {func_name} failed: {error}"
-                                )
-
-                            # Convert to exception for tenacity
-                            if isinstance(error, Exception):
-                                raise error
-                            else:
-                                raise ValueError(f"Operation failed: {error}")
-
-                        # Success case
-                        if log_attempts and attempt_count > 1:
-                            logger.info(
-                                f"{func_name} succeeded after {attempt_count} attempts"
-                            )
-
-                        return result
-
-            except RetryError:
-                if log_attempts:
-                    logger.warning(f"{func_name} failed after {attempt_count} attempts")
-
-                return (
-                    last_result
-                    if last_result is not None
-                    else Err.from_value("All retry attempts failed")
-                )  # type: ignore
-
-            return (
-                last_result
-                if last_result is not None
-                else Err.from_value("Unknown retry error")
-            )  # type: ignore
-
-        return wrapper
+        return _make_retry_wrapper(
+            func,
+            error_types=None,
+            stop=stop,
+            wait=wait,
+            log_attempts=log_attempts,
+            retry_if=retry_if,
+            before_attempt=before_attempt,
+            on_retry=on_retry,
+        )
 
     return decorator
 
@@ -125,6 +248,9 @@ def on_err_type(
     stop: Any = None,
     wait: Any = None,
     log_attempts: bool = True,
+    retry_if: Callable[[E], bool] | None = None,
+    before_attempt: Callable[[int], None] | None = None,
+    on_retry: Callable[[int, E], None] | None = None,
 ) -> Callable[[Callable[..., Result[T, E]]], Callable[..., Result[T, E]]]:
     """Retry only when Result contains specific exception types.
 
@@ -133,86 +259,51 @@ def on_err_type(
         stop: Tenacity stop condition.
         wait: Tenacity wait condition.
         log_attempts: Whether to log retry attempts.
+        retry_if: Additional predicate on the Err value, applied after the
+            ``error_types`` check; retry only when it returns True. Useful
+            to exclude a subclass of an otherwise-retryable type. Defaults
+            to always retrying (matching pre-existing behaviour) once
+            ``error_types`` matches.
+        before_attempt: Called before every attempt with the 1-based
+            attempt number (including the first). If it raises, that
+            exception propagates to the caller unchanged.
+        on_retry: Called with the 1-based attempt number and the Err value
+            after each failed attempt that will be retried. Not called
+            after the final, exhausting attempt.
 
     Examples:
         >>> @on_err_type(ConnectionError, TimeoutError)
         ... def network_operation() -> Result[str, Exception]:
         ...     return Ok("success")
+
+        Exclude a subclass from an otherwise-retryable exception type -
+        retry a 429 but not the 402 that subclasses it:
+
+        >>> from tenacity import wait_none
+        >>> class TooManyRequestsError(Exception): pass
+        >>> class PaymentRequiredError(TooManyRequestsError): pass
+        >>> @on_err_type(
+        ...     TooManyRequestsError,
+        ...     wait=wait_none(),
+        ...     retry_if=lambda err: not isinstance(err, PaymentRequiredError),
+        ... )
+        ... def call_api() -> Result[str, Exception]:
+        ...     return Err(PaymentRequiredError("payment required"))
+        >>> call_api().unwrap_err()
+        PaymentRequiredError('payment required')
     """
 
     def decorator(func: Callable[..., Result[T, E]]) -> Callable[..., Result[T, E]]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Result[T, E]:
-            last_result: Result[T, E] | None = None
-            attempt_count = 0
-
-            # Use functional API for parameter defaults
-
-            actual_stop = Option.from_nullable(stop).unwrap_or_else(
-                lambda: stop_after_attempt(3)
-            )
-            actual_wait = Option.from_nullable(wait).unwrap_or_else(
-                lambda: wait_exponential(multiplier=1, min=4, max=10)
-            )
-
-            if log_attempts:
-                func_name = Option.of(lambda: func.__name__).unwrap_or("callable")
-                logger.debug(
-                    f"Starting retry operation for {func_name} (retrying on: {error_types})"
-                )
-
-            try:
-                for attempt in Retrying(
-                    stop=actual_stop, wait=actual_wait, reraise=False
-                ):
-                    with attempt:
-                        attempt_count += 1
-                        result = func(*args, **kwargs)
-                        last_result = result
-
-                        if result.is_err():
-                            error = result.unwrap_err()
-
-                            # Only retry if error is one of the specified types
-                            if isinstance(error, error_types):
-                                if log_attempts:
-                                    logger.debug(
-                                        f"Attempt {attempt_count} of {func_name} failed with {type(error).__name__}: {error}"
-                                    )
-                                raise error
-                            else:
-                                # Don't retry this error type
-                                if log_attempts:
-                                    logger.debug(
-                                        f"{func_name} failed with non-retryable error {type(error).__name__}: {error}"
-                                    )
-                                return result
-
-                        # Success case or non-retryable error
-                        if log_attempts and attempt_count > 1:
-                            logger.info(
-                                f"{func_name} succeeded after {attempt_count} attempts"
-                            )
-
-                        return result
-
-            except RetryError:
-                if log_attempts:
-                    logger.warning(f"{func_name} failed after {attempt_count} attempts")
-
-                return (
-                    last_result
-                    if last_result is not None
-                    else Err.from_value("All retry attempts failed")
-                )  # type: ignore
-
-            return (
-                last_result
-                if last_result is not None
-                else Err.from_value("Unknown retry error")
-            )  # type: ignore
-
-        return wrapper
+        return _make_retry_wrapper(
+            func,
+            error_types=error_types,
+            stop=stop,
+            wait=wait,
+            log_attempts=log_attempts,
+            retry_if=retry_if,
+            before_attempt=before_attempt,
+            on_retry=on_retry,
+        )
 
     return decorator
 

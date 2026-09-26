@@ -8,7 +8,7 @@ import pytest
 # Skip all tests if tenacity is not available
 pytest.importorskip("tenacity")
 
-from tenacity import stop_after_attempt, wait_fixed
+from tenacity import stop_after_attempt, wait_fixed, wait_none
 
 from logerr import Err, Ok, Result
 from logerr.recipes import retry
@@ -390,6 +390,198 @@ class TestRetryDecorators:
         assert result.is_err()
         assert result.unwrap_err() == "always fails"
         assert call_count == 2
+
+
+class TestRetryHooks:
+    """Test the retry_if/before_attempt/on_retry hooks on on_err/on_err_type."""
+
+    def test_before_attempt_called_with_1_based_attempt_number(self):
+        """before_attempt sees 1-based attempt numbers, including attempt 1."""
+        attempts: list[int] = []
+
+        @retry.on_err(wait=wait_none(), before_attempt=attempts.append)
+        def flaky() -> Result[int, str]:
+            return Ok(1) if len(attempts) >= 3 else Err("not yet")
+
+        result = flaky()
+        assert result.is_ok()
+        assert attempts == [1, 2, 3]
+
+    def test_before_attempt_raising_aborts_with_exactly_one_attempt(self):
+        """An exception from before_attempt propagates unchanged: no retry,
+
+        no RetryError, no conversion to Err.
+        """
+        call_count = 0
+        before_calls = 0
+
+        def guard(attempt_number: int) -> None:
+            nonlocal before_calls
+            before_calls += 1
+            raise RuntimeError("budget exhausted")
+
+        @retry.on_err(wait=wait_none(), before_attempt=guard)
+        def op() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            return Err("failed")
+
+        with pytest.raises(RuntimeError, match="budget exhausted"):
+            op()
+
+        assert before_calls == 1
+        assert call_count == 0  # never reached: gated before func() runs
+
+    def test_retry_if_false_on_first_err_returns_immediately(self):
+        """retry_if returning False stops immediately and returns that Err."""
+        call_count = 0
+
+        @retry.on_err(wait=wait_none(), retry_if=lambda err: err == 429)
+        def op() -> Result[int, int]:
+            nonlocal call_count
+            call_count += 1
+            return Err(404)
+
+        result = op()
+        assert result.is_err()
+        assert result.unwrap_err() == 404
+        assert call_count == 1
+
+    def test_retry_if_true_then_success(self):
+        """retry_if returning True lets retrying proceed to success."""
+        call_count = 0
+
+        @retry.on_err(wait=wait_none(), retry_if=lambda err: err == 429)
+        def op() -> Result[int, int]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                return Err(429)
+            return Ok(42)
+
+        result = op()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+        assert call_count == 2
+
+    def test_on_retry_called_n_minus_1_times(self):
+        """on_retry fires after each retried attempt, not the final one."""
+        retries: list[tuple[int, str]] = []
+        call_count = 0
+
+        @retry.on_err(
+            stop=stop_after_attempt(4),
+            wait=wait_none(),
+            on_retry=lambda n, err: retries.append((n, err)),
+        )
+        def op() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 4:
+                return Err("not yet")
+            return Ok(42)
+
+        result = op()
+        assert result.is_ok()
+        assert call_count == 4
+        assert retries == [(1, "not yet"), (2, "not yet"), (3, "not yet")]
+
+    def test_composite_retry_429_twice_then_ok_with_before_attempt(self):
+        """retry_if + before_attempt compose: retry 429s, count attempts."""
+        attempts: list[int] = []
+        call_count = 0
+
+        @retry.on_err(
+            wait=wait_none(),
+            retry_if=lambda status: status == 429,
+            before_attempt=attempts.append,
+        )
+        def call_api() -> Result[str, int]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                return Err(429)
+            return Ok("ok")
+
+        result = call_api()
+        assert result.is_ok()
+        assert result.unwrap() == "ok"
+        assert attempts == [1, 2, 3]
+
+    def test_on_err_type_retry_if_excludes_err_subclass(self):
+        """retry_if can exclude a subclass of an otherwise-retryable type.
+
+        402 (PaymentRequiredError) subclasses 429 (TooManyRequestsError), so the
+        `error_types` check alone would retry it - `retry_if` carves it out.
+        """
+
+        class TooManyRequestsError(Exception):
+            pass
+
+        class PaymentRequiredError(TooManyRequestsError):
+            pass
+
+        call_count = 0
+
+        @retry.on_err_type(
+            TooManyRequestsError,
+            wait=wait_none(),
+            retry_if=lambda err: not isinstance(err, PaymentRequiredError),
+        )
+        def call_api() -> Result[str, Exception]:
+            nonlocal call_count
+            call_count += 1
+            return Err(PaymentRequiredError("payment required"))
+
+        result = call_api()
+        assert result.is_err()
+        assert isinstance(result.unwrap_err(), PaymentRequiredError)
+        assert call_count == 1  # excluded by retry_if: no retry despite type match
+
+    def test_on_err_type_retries_matching_subclass_via_retry_if(self):
+        """The parent type (429) still retries normally under the same setup."""
+
+        class TooManyRequestsError(Exception):
+            pass
+
+        class PaymentRequiredError(TooManyRequestsError):
+            pass
+
+        call_count = 0
+
+        @retry.on_err_type(
+            TooManyRequestsError,
+            wait=wait_none(),
+            retry_if=lambda err: not isinstance(err, PaymentRequiredError),
+        )
+        def call_api() -> Result[str, Exception]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                return Err(TooManyRequestsError("rate limited"))
+            return Ok("ok")
+
+        result = call_api()
+        assert result.is_ok()
+        assert result.unwrap() == "ok"
+        assert call_count == 2
+
+    def test_defaults_preserve_current_behaviour(self):
+        """With no hooks passed, behaviour is identical to before their addition."""
+        call_count = 0
+
+        @retry.on_err(stop=stop_after_attempt(3), wait=wait_none())
+        def flaky() -> Result[int, str]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                return Err("failed")
+            return Ok(42)
+
+        result = flaky()
+        assert result.is_ok()
+        assert result.unwrap() == 42
+        assert call_count == 3
 
     def test_decorator_preserves_original_function_behavior(self):
         """Test that decorated functions behave identically to originals when successful."""
