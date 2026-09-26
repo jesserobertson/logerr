@@ -15,6 +15,9 @@ def on_err(
     stop: Any = None,
     wait: Any = None,
     log_attempts: bool = True,
+    retry_if: Callable[[E], bool] | None = None,
+    before_attempt: Callable[[int], None] | None = None,
+    on_retry: Callable[[int, E], None] | None = None,
 ) -> Callable[[Callable[..., Result[T, E]]], Callable[..., Result[T, E]]]:
     """Retry a Result-returning function when it returns Err."""
     ...
@@ -24,6 +27,9 @@ def on_err_type(
     stop: Any = None,
     wait: Any = None,
     log_attempts: bool = True,
+    retry_if: Callable[[E], bool] | None = None,
+    before_attempt: Callable[[int], None] | None = None,
+    on_retry: Callable[[int, E], None] | None = None,
 ) -> Callable[[Callable[..., Result[T, E]]], Callable[..., Result[T, E]]]:
     """Retry only when Result contains specific exception types."""
     ...

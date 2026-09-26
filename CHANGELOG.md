@@ -8,6 +8,31 @@ a 1.0 stability commitment is made.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
+### Added
+
+- `retry_if`, `before_attempt`, and `on_retry` keyword arguments on
+  `logerr.recipes.retry.on_err`/`on_err_type` (#1). `retry_if` gates
+  retrying on a predicate over the `Err` value - useful for excluding an
+  exception subclass from an otherwise-retryable parent type.
+  `before_attempt` runs before every attempt (1-based attempt number,
+  including the first); an exception it raises propagates to the caller
+  unchanged instead of being retried or turned into an `Err`.
+  `on_retry` runs after each failed attempt that will be retried (not the
+  final one), receiving the attempt number and the `Err` value. All three
+  default to `None`, preserving existing behaviour exactly. Note:
+  `error_types`/`retry_if`/the hooks all key off a *returned* `Err` value -
+  an exception the wrapped function raises directly bypasses them and is
+  retried unconditionally per tenacity's default policy, same as before;
+  wrap the call with `Result.of(...)` first if you need it filtered too.
+
+### Changed
+
+- `on_err`/`on_err_type` now compute `func_name` unconditionally instead of
+  only inside `if log_attempts`, avoiding a possibly-unbound reference now
+  that more branches want to log the function's name.
+
 ## [0.2.1] - 2026-08-16
 
 ### Added
